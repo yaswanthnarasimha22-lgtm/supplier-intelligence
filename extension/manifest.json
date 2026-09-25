@@ -1,0 +1,91 @@
+{
+  "manifest_version": 3,
+  "name": "Supplier Session Tracker",
+  "version": "1.3.0",
+  "description": "Managed supplier portal access with fresh sessions and tracking for Teletext Holidays agents.",
+  "permissions": [
+    "tabs",
+    "storage",
+    "webNavigation",
+    "cookies",
+    "browsingData"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://*.hotelbeds.com/*",
+    "https://www.bedswithease.com/*",
+    "https://*.bedswithease.com/*",
+    "https://www.alturabeds.com/*",
+    "https://*.alturabeds.com/*",
+    "https://www.sunhotels.com/*",
+    "https://*.sunhotels.com/*",
+    "https://suninternationaltt.com/*",
+    "https://*.suninternationaltt.com/*",
+    "https://www.sunegypt.com/*",
+    "https://*.sunegypt.com/*",
+    "https://www.suntransfers.com/*",
+    "https://*.suntransfers.com/*",
+    "https://partners.suntransfers.com/*",
+    "https://stours-extranet.cyberlogic.cloud/*",
+    "https://*.cyberlogic.cloud/*",
+    "https://affiliate.yalago.com/*",
+    "https://*.yalago.com/*",
+    "https://dmc.w2m.travel/*",
+    "https://*.w2m.travel/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:3000/*"
+      ],
+      "js": [
+        "app-bridge.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://*.hotelbeds.com/*",
+        "https://www.bedswithease.com/*",
+        "https://*.bedswithease.com/*",
+        "https://www.alturabeds.com/*",
+        "https://*.alturabeds.com/*",
+        "https://www.sunhotels.com/*",
+        "https://*.sunhotels.com/*",
+        "https://suninternationaltt.com/*",
+        "https://*.suninternationaltt.com/*",
+        "https://www.sunegypt.com/*",
+        "https://*.sunegypt.com/*",
+        "https://www.suntransfers.com/*",
+        "https://*.suntransfers.com/*",
+        "https://partners.suntransfers.com/*",
+        "https://stours-extranet.cyberlogic.cloud/*",
+        "https://*.cyberlogic.cloud/*",
+        "https://affiliate.yalago.com/*",
+        "https://*.yalago.com/*",
+        "https://dmc.w2m.travel/*",
+        "https://*.w2m.travel/*"
+      ],
+      "css": [
+        "credential-shield.css"
+      ],
+      "js": [
+        "adapters/hotelbeds.js",
+        "adapters/beds-with-ease.js",
+        "adapters/alturabeds.js",
+        "adapters/sunhotels.js",
+        "adapters/sun-international.js",
+        "adapters/suntransfers.js",
+        "adapters/stours.js",
+        "adapters/yalago.js",
+        "adapters/w2m.js",
+        "supplier-tracker.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

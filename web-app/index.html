@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Supplier Session Launcher</title>
+  <link rel="stylesheet" href="/web-app/styles.css">
+</head>
+<body>
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <span class="logo">Supplier Tracker</span>
+      <span id="extension-status" class="status-badge">Checking extension…</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Supplier portals</h1>
+      <p class="subtitle">Select a supplier to open a managed, tracked session. Credentials are filled automatically — you will never see or need the password.</p>
+    </section>
+
+    <section class="supplier-grid" aria-labelledby="launch-title">
+      <h2 id="launch-title" class="sr-only">Launch a supplier portal</h2>
+
+      <button class="supplier-card card-violet" data-supplier="hotelbeds">
+        <span class="card-name">Hotelbeds1MAF</span>
+        <span class="card-url">discover.hotelbeds.com</span>
+        <span class="card-account">Account 1</span>
+      </button>
+
+      <button class="supplier-card card-orange" data-supplier="hotelbeds2">
+        <span class="card-name">Hotelbeds2MA</span>
+        <span class="card-url">discover.hotelbeds.com</span>
+        <span class="card-account">Account 2</span>
+      </button>
+
+      <button class="supplier-card" data-supplier="bedswithease">
+        <span class="card-name">Beds With Ease</span>
+        <span class="card-url">bedswithease.com</span>
+      </button>
+
+      <button class="supplier-card" data-supplier="alturabeds">
+        <span class="card-name">Altura Beds</span>
+        <span class="card-url">alturabeds.com</span>
+      </button>
+
+      <button class="supplier-card" data-supplier="sunhotels">
+        <span class="card-name">SunHotels</span>
+        <span class="card-url">sunhotels.com</span>
+      </button>
+
+      <button class="supplier-card" data-supplier="suninternational">
+        <span class="card-name">Sun International</span>
+        <span class="card-url">sunegypt.com</span>
+      </button>
+
+      <button class="supplier-card" data-supplier="suntransfers">
+        <span class="card-name">SunTransfers</span>
+        <span class="card-url">partners.suntransfers.com</span>
+      </button>
+
+      <button class="supplier-card" data-supplier="stours">
+        <span class="card-name">S Tours</span>
+        <span class="card-url">cyberlogic.cloud</span>
+      </button>
+
+      <button class="supplier-card" data-supplier="yalago">
+        <span class="card-name">Yalago</span>
+        <span class="card-url">affiliate.yalago.com</span>
+        <span class="card-badge">OTP</span>
+      </button>
+
+      <button class="supplier-card card-violet" data-supplier="w2m">
+        <span class="card-name">W2M HTRUS1</span>
+        <span class="card-url">dmc.w2m.travel</span>
+        <span class="card-badge">OTP</span>
+        <span class="card-account">Account 1</span>
+      </button>
+
+      <button class="supplier-card card-orange" data-supplier="w2m2">
+        <span class="card-name">W2M TLSHOT</span>
+        <span class="card-url">dmc.w2m.travel</span>
+        <span class="card-badge">OTP</span>
+        <span class="card-account">Account 2</span>
+      </button>
+    </section>
+
+    <p id="launch-status" class="launch-message" aria-live="polite">Ready — select a supplier above.</p>
+
+    <section class="events-section" aria-labelledby="events-title">
+      <div class="events-header">
+        <h2 id="events-title">Session event log</h2>
+        <button id="refresh-events" class="refresh-btn" title="Refresh events" aria-label="Refresh events">Refresh</button>
+      </div>
+      <div id="event-list" class="event-list">
+        <p class="empty-state">No events recorded yet. Open a supplier to begin.</p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/web-app/app.js"></script>
+</body>
+</html>

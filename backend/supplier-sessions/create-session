@@ -1,0 +1,193 @@
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+
+// ---------------------------------------------------------------------------
+// Supplier registry
+// ---------------------------------------------------------------------------
+// Each key is an account identity. Same-domain suppliers (hotelbeds/hotelbeds2)
+// use the same startUrl but have SEPARATE credentials and SEPARATE sessions.
+// No grouping — each card opens independently without closing the other.
+// ---------------------------------------------------------------------------
+
+const SUPPLIERS = {
+  hotelbeds: {
+    label: "Hotelbeds1MAF",
+    startUrl: "https://discover.hotelbeds.com/",
+    domains: ["hotelbeds.com"]
+  },
+  hotelbeds2: {
+    label: "Hotelbeds2MA",
+    startUrl: "https://discover.hotelbeds.com/",
+    domains: ["hotelbeds.com"]
+  },
+  bedswithease: {
+    label: "Beds With Ease",
+    startUrl: "https://www.bedswithease.com/login",
+    domains: ["bedswithease.com"]
+  },
+  alturabeds: {
+    label: "Altura Beds",
+    startUrl: "https://www.alturabeds.com/",
+    domains: ["alturabeds.com"]
+  },
+  sunhotels: {
+    label: "SunHotels",
+    startUrl: "https://www.sunhotels.com/en/",
+    domains: ["sunhotels.com"]
+  },
+  suninternational: {
+    label: "Sun International",
+    startUrl: "https://www.sunegypt.com/",
+    domains: ["suninternationaltt.com", "sunegypt.com"]
+  },
+  suntransfers: {
+    label: "SunTransfers",
+    startUrl: "https://partners.suntransfers.com/",
+    domains: ["suntransfers.com"]
+  },
+  stours: {
+    label: "S Tours",
+    startUrl: "https://stours-extranet.cyberlogic.cloud/sign-in",
+    domains: ["cyberlogic.cloud"]
+  },
+  yalago: {
+    label: "Yalago",
+    startUrl: "https://affiliate.yalago.com/Home/Welcome?returnUrl=%2F#loginForm",
+    domains: ["yalago.com"]
+  },
+  w2m: {
+    label: "W2M Account 1",
+    startUrl: "https://dmc.w2m.travel/",
+    domains: ["w2m.travel"]
+  },
+  w2m2: {
+    label: "W2M Account 2",
+    startUrl: "https://dmc.w2m.travel/",
+    domains: ["w2m.travel"]
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Credential resolution — by supplier key, from env vars
+// ---------------------------------------------------------------------------
+
+function getCredentialEnvVars(supplierKey) {
+  const envKey = supplierKey.toUpperCase();
+  return {
+    username: process.env[`${envKey}_USERNAME`],
+    password: process.env[`${envKey}_PASSWORD`]
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Session store
+// ---------------------------------------------------------------------------
+
+const sessionsById = new Map();
+const sessionRecordsById = new Map();
+const sessionDataDirectory = fileURLToPath(
+  new URL("../session-data/", import.meta.url)
+);
+
+function sessionFilePath(sessionId) {
+  return `${sessionDataDirectory}${sessionId}.json`;
+}
+
+async function saveSessionRecord(record) {
+  await mkdir(sessionDataDirectory, { recursive: true });
+  await writeFile(
+    sessionFilePath(record.sessionId),
+    `${JSON.stringify(record, null, 2)}\n`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// API
+// ---------------------------------------------------------------------------
+
+export async function createSession(payload) {
+  // Accept both "supplier" and "account" for backward compatibility.
+  // The web app sends { supplier: "hotelbeds" }.
+  const key = String(payload?.account || payload?.supplier || "").toLowerCase();
+
+  if (!key) {
+    return { error: "Missing supplier identifier.", status: 400 };
+  }
+
+  const configuration = SUPPLIERS[key];
+
+  if (!configuration) {
+    return { error: "Supplier is not approved for launch.", status: 400 };
+  }
+
+  const session = {
+    sessionId: `sup_sess_${randomUUID()}`,
+    supplier: key,
+    supplierLabel: configuration.label,
+    startUrl: configuration.startUrl,
+    userId: payload?.userId || "demo-agent",
+    launchToken: randomUUID()
+  };
+
+  sessionsById.set(session.sessionId, session);
+
+  const record = {
+    sessionId: session.sessionId,
+    supplier: session.supplier,
+    supplierLabel: session.supplierLabel,
+    startUrl: session.startUrl,
+    userId: session.userId,
+    createdAt: new Date().toISOString(),
+    events: []
+  };
+
+  sessionRecordsById.set(session.sessionId, record);
+  await saveSessionRecord(record);
+
+  return { status: 201, body: session };
+}
+
+export function getSessionCredentials(sessionId, authorization) {
+  const session = sessionsById.get(sessionId);
+
+  if (!session || authorization !== `Bearer ${session.launchToken}`) {
+    return { error: "Invalid supplier session.", status: 401 };
+  }
+
+  const credentials = getCredentialEnvVars(session.supplier);
+
+  if (
+    !credentials.username ||
+    !credentials.password ||
+    credentials.username.trim() === "" ||
+    credentials.password.trim() === ""
+  ) {
+    return {
+      error: `No local credentials configured for ${session.supplier}. Check .env file.`,
+      status: 409
+    };
+  }
+
+  return {
+    status: 200,
+    body: {
+      username: credentials.username,
+      password: credentials.password,
+      autoSubmit: process.env.AUTO_SUBMIT_LOGIN === "true"
+    }
+  };
+}
+
+export async function appendSessionEvent(event, authorization) {
+  const session = sessionsById.get(event.sessionId);
+  const record = sessionRecordsById.get(event.sessionId);
+
+  if (!session || !record || authorization !== `Bearer ${session.launchToken}`) {
+    return { error: "Invalid supplier session.", status: 401 };
+  }
+
+  record.events.push(event);
+  await saveSessionRecord(record);
+  return { status: 202, body: { accepted: true } };
+}

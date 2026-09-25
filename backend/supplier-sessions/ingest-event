@@ -1,0 +1,20 @@
+import { appendSessionEvent } from "./create-session";
+
+const receivedEvents = [];
+
+export async function ingestEvent(event, authorization) {
+  const requiredFields = ["eventId", "sessionId", "supplier", "eventType", "occurredAt"];
+  const missingField = requiredFields.find((field) => !event?.[field]);
+  if (missingField) return { error: `Missing event field: ${missingField}`, status: 400 };
+
+  const storedEvent = { ...event, receivedAt: new Date().toISOString() };
+  const result = await appendSessionEvent(storedEvent, authorization);
+  if (result.error) return result;
+  receivedEvents.unshift(storedEvent);
+  if (receivedEvents.length > 200) receivedEvents.length = 200;
+  return result;
+}
+
+export function listEvents() {
+  return [...receivedEvents];
+}
