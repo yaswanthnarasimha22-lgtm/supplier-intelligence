@@ -6,20 +6,23 @@
 //
 // 1. Validates the supplier and start URL.
 // 2. Determines the supplier's isolation group.
-// 3. Closes existing tabs belonging to that group.
-// 4. Clears the supplier's cookies and site data.
-// 5. Clears extension session state for that group.
-// 6. Creates a clean supplier tab.
-// 7. Stores the session using the newly created tab ID.
-// 8. Tracks navigation, login activity, and tab closure.
+// 3. Clears the supplier's cookies and site data for every configured origin
+//    (including known subdomains such as app.hotelbeds.com and
+//    b2dmc.w2m.travel).
+// 4. Clears extension session state for that group.
+// 5. Creates a clean supplier tab.
+// 6. Stores the session using the newly created tab ID.
+// 7. Tracks navigation, login activity, and tab closure.
 //
 // Accounts using the same domain share an isolation group:
 //
-// - hotelbeds and hotelbeds2
-// - w2m and w2m2
+//   - hotelbeds  and hotelbeds2  -> group "hotelbeds"
+//   - w2m        and w2m2        -> group "w2m"
 //
-// Therefore, opening one account removes the previous browser session for the
-// shared domain before starting the new account.
+// Existing supplier tabs are NOT closed when a new launch happens — agents may
+// have multiple suppliers open at once. Session state (cookies, localStorage,
+// IndexedDB, service workers) is fully wiped for the launching supplier so
+// the new tab always starts unauthenticated.
 // ---------------------------------------------------------------------------
 
 const API_ORIGIN = "http://localhost:3000";
@@ -98,7 +101,7 @@ const SUPPLIER_CONFIG = {
   }
 };
 
-// Flatten all configured domains into a unique list.
+// Flatten all configured domains into a unique allow-list.
 const ALLOWED_HOSTS = [
   ...new Set(
     Object.values(SUPPLIER_CONFIG).flatMap((config) => config.domains)
@@ -123,16 +126,12 @@ function supplierConfig(supplier) {
   return SUPPLIER_CONFIG[key] || null;
 }
 
-function accountOf(session) {
+function sessionAccount(session) {
   if (!session) return null;
   const candidate = session.account || session.supplier;
   if (typeof candidate !== "string") return null;
   const normalized = canonicalSupplier(candidate);
   return normalized || null;
-}
-
-function sessionAccount(session) {
-  return accountOf(session);
 }
 
 function hostnameInDomains(hostname, domains) {
@@ -159,13 +158,26 @@ function isAllowedSupplierUrl(rawUrl) {
   }
 }
 
+function newEventId() {
+  // crypto.randomUUID() is available in MV3 service workers (Chrome 92+),
+  // but fall back to a random-hex string just in case.
+  try {
+    if (crypto && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch {
+    /* fall through */
+  }
+  return `evt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 // ---------------------------------------------------------------------------
 // Backend communication
 // ---------------------------------------------------------------------------
 async function backendFetch(path, options = {}) {
   const url = `${API_ORIGIN}${path}`;
   const response = await fetch(url, options);
-  
+
   if (!response.ok) {
     let body = {};
     try {
@@ -186,25 +198,30 @@ async function backendFetch(path, options = {}) {
   if (contentType.includes("application/json")) {
     return response.json();
   }
-  
+
   const text = await response.text();
   return text ? { message: text } : {};
 }
 
-async function createBackendSession(sessionPayload) {
-  return backendFetch("/api/supplier-sessions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(sessionPayload)
-  });
-}
-
+/**
+ * Send a tracking event to the backend.
+ *
+ * The backend expects: eventId, sessionId, supplier, eventType, occurredAt.
+ * Any extra keys in eventPayload (url, metadata, etc.) are forwarded
+ * verbatim.  Session-derived fields always win over eventPayload so a caller
+ * cannot accidentally overwrite them.
+ */
 async function sendEvent(session, eventPayload = {}) {
-  if (!session?.sessionId) throw new Error("Cannot send event without a session ID.");
-  if (!session?.launchToken) throw new Error("Cannot send event without a launch token.");
+  if (!session?.sessionId) {
+    throw new Error("Cannot send event without a session ID.");
+  }
+  if (!session?.launchToken) {
+    throw new Error("Cannot send event without a launch token.");
+  }
 
   const payload = {
-    eventId: crypto.randomUUID(),
+    ...eventPayload,
+    eventId: eventPayload.eventId || newEventId(),
     sessionId: session.sessionId,
     supplier: canonicalSupplier(session.supplier),
     userId: session.userId || null,
@@ -212,12 +229,8 @@ async function sendEvent(session, eventPayload = {}) {
     occurredAt:
       eventPayload.occurredAt ||
       eventPayload.timestamp ||
-      new Date().toISOString(),
-    ...eventPayload,
-    sessionId: session.sessionId,
-    supplier: canonicalSupplier(session.supplier)
+      new Date().toISOString()
   };
-  
   delete payload.timestamp;
 
   return backendFetch("/api/supplier-events", {
@@ -231,11 +244,17 @@ async function sendEvent(session, eventPayload = {}) {
 }
 
 async function requestCredentials(session) {
-  if (!session?.sessionId) throw new Error("Cannot request credentials without a session ID.");
-  if (!session?.launchToken) throw new Error("Cannot request credentials without a launch token.");
+  if (!session?.sessionId) {
+    throw new Error("Cannot request credentials without a session ID.");
+  }
+  if (!session?.launchToken) {
+    throw new Error("Cannot request credentials without a launch token.");
+  }
 
   const account = sessionAccount(session);
-  if (!account) throw new Error("Cannot request credentials without an account.");
+  if (!account) {
+    throw new Error("Cannot request credentials without an account.");
+  }
 
   const query = new URLSearchParams({ account });
   return backendFetch(
@@ -269,22 +288,30 @@ async function getTabsForDomains(domains) {
   return matchingTabs;
 }
 
+/**
+ * Ask existing supplier content scripts to clear any page-level
+ * credential-attempt flags.  Best-effort: silent failure when the tab has no
+ * reachable content script.
+ */
 async function clearCredentialAttemptFlagsForGroup(domains) {
   const tabs = await getTabsForDomains(domains);
-  const messages = tabs.map((tab) => {
-    return chrome.tabs.sendMessage(tab.id, { type: "SUPPLIER_RESET_SESSION_STATE" }).catch(() => {});
-  });
+  const messages = tabs.map((tab) =>
+    chrome.tabs
+      .sendMessage(tab.id, { type: "SUPPLIER_RESET_SESSION_STATE" })
+      .catch(() => undefined)
+  );
   await Promise.allSettled(messages);
 }
 
-async function closeTabsForDomains(domains) {
-  const tabs = await getTabsForDomains(domains);
-  const tabIds = tabs.map((tab) => tab.id).filter(Boolean);
-  if (tabIds.length > 0) {
-    await chrome.tabs.remove(tabIds);
-  }
-}
-
+/**
+ * Clear supplier site data.
+ *
+ * Removes cookies, localStorage, IndexedDB, cacheStorage, service workers,
+ * etc. for every origin.  When the supplier config provides an explicit
+ * `originsToClear` list (to reach subdomains like app.hotelbeds.com and
+ * b2dmc.w2m.travel), those origins are added on top of the default
+ * derivation of "https://<domain>" and "https://www.<domain>".
+ */
 async function clearSiteDataForDomains(domains, extraOrigins = []) {
   const origins = new Set();
   for (const domain of domains) {
@@ -294,50 +321,71 @@ async function clearSiteDataForDomains(domains, extraOrigins = []) {
   for (const origin of extraOrigins || []) {
     origins.add(origin);
   }
-  
-  await chrome.browsingData.remove(
-    { origins: [...origins] },
-    {
-      cookies: true,
-      cacheStorage: true,
-      fileSystems: true,
-      indexedDB: true,
-      localStorage: true,
-      serviceWorkers: true,
-      webSQL: true
-    }
-  );
+
+  try {
+    await chrome.browsingData.remove(
+      { origins: [...origins] },
+      {
+        cookies: true,
+        cacheStorage: true,
+        fileSystems: true,
+        indexedDB: true,
+        localStorage: true,
+        serviceWorkers: true,
+        webSQL: true
+      }
+    );
+  } catch (error) {
+    console.warn("[SupplierTracker] browsingData.remove failed:", error);
+  }
 }
 
+/**
+ * Fallback pass to remove any cookies that survived browsingData.remove
+ * (for example partitioned cookies on some Chrome versions).
+ *
+ * chrome.cookies.getAll({ domain }) returns cookies for the domain and its
+ * subdomains, which is what we want.
+ */
 async function clearCookiesForDomains(domains) {
   for (const domain of domains) {
     let cookies = [];
     try {
       cookies = await chrome.cookies.getAll({ domain });
     } catch (error) {
-      console.warn(`[SupplierTracker] Could not read cookies for ${domain}:`, error);
+      console.warn(
+        `[SupplierTracker] Could not read cookies for ${domain}:`,
+        error
+      );
       continue;
     }
-    
+
     const removals = cookies.map(async (cookie) => {
       const protocol = cookie.secure ? "https" : "http";
-      const cookieDomain = cookie.domain.replace(/^./, "");
+      // Strip the leading "." on domain-cookies (".hotelbeds.com" -> "hotelbeds.com").
+      // The previous regex `/^./` was wrong — it removed the first CHARACTER
+      // of every domain (turning "hotelbeds.com" into "otelbeds.com"), so
+      // chrome.cookies.remove silently failed for host-only cookies.
+      const cookieDomain = cookie.domain.replace(/^\./, "");
       const cookiePath = cookie.path || "/";
       const cookieUrl = `${protocol}://${cookieDomain}${cookiePath}`;
+
       const removalDetails = { url: cookieUrl, name: cookie.name };
-      
       if (cookie.storeId) removalDetails.storeId = cookie.storeId;
       if (typeof cookie.partitionKey !== "undefined") {
         removalDetails.partitionKey = cookie.partitionKey;
       }
-      
+
       try {
         await chrome.cookies.remove(removalDetails);
       } catch (error) {
-        console.warn(`[SupplierTracker] Could not remove cookie ${cookie.name}:`, error);
+        console.warn(
+          `[SupplierTracker] Could not remove cookie ${cookie.name}:`,
+          error
+        );
       }
     });
-    
+
     await Promise.allSettled(removals);
   }
 }
@@ -345,17 +393,17 @@ async function clearCookiesForDomains(domains) {
 async function clearExtensionSessionsForGroup(isolationGroup) {
   const allStoredValues = await chrome.storage.session.get(null);
   const keysToRemove = [];
-  
+
   for (const [key, value] of Object.entries(allStoredValues)) {
     if (!key.startsWith("supplier-session:")) continue;
     if (!value?.supplier) continue;
-    
+
     const config = supplierConfig(value.supplier);
     if (config && config.isolationGroup === isolationGroup) {
       keysToRemove.push(key);
     }
   }
-  
+
   if (keysToRemove.length > 0) {
     await chrome.storage.session.remove(keysToRemove);
   }
@@ -366,30 +414,45 @@ async function clearExtensionSessionsForGroup(isolationGroup) {
 // ---------------------------------------------------------------------------
 async function prepareFreshLaunch(supplier) {
   const config = supplierConfig(supplier);
-  if (!config) throw new Error(`No configuration exists for supplier: ${supplier}`);
+  if (!config) {
+    throw new Error(`No configuration exists for supplier: ${supplier}`);
+  }
 
-  console.info(`[SupplierTracker] Preparing fresh launch for ${supplier}`, config);
+  console.info(
+    `[SupplierTracker] Preparing fresh launch for ${supplier}`,
+    config
+  );
 
+  // Reset credential-attempt flags on existing tabs for this domain group
+  // (do not close them — the user may have other supplier tabs open too).
   await clearCredentialAttemptFlagsForGroup(config.domains);
+
+  // Wipe cookies, localStorage, IndexedDB, service workers for every known
+  // origin of this supplier (including subdomains such as app.hotelbeds.com
+  // and b2dmc.w2m.travel) so the fresh tab starts unauthenticated.
   await clearSiteDataForDomains(config.domains, config.originsToClear);
   await clearCookiesForDomains(config.domains);
   await clearExtensionSessionsForGroup(config.isolationGroup);
 
-  console.info(`[SupplierTracker] Fresh browser state prepared for ${supplier}`);
+  console.info(
+    `[SupplierTracker] Fresh browser state prepared for ${supplier}`
+  );
 }
 
 // ---------------------------------------------------------------------------
-// Launch locking
+// Launch locking (serialize concurrent launches within an isolation group)
 // ---------------------------------------------------------------------------
 async function withSupplierLaunchLock(supplier, task) {
   const config = supplierConfig(supplier);
-  if (!config) throw new Error(`Cannot create launch lock for unknown supplier: ${supplier}`);
+  if (!config) {
+    throw new Error(`Cannot create launch lock for unknown supplier: ${supplier}`);
+  }
 
   const lockKey = config.isolationGroup;
   const previous = launchLocks.get(lockKey) || Promise.resolve();
   const current = previous.catch(() => undefined).then(task);
   launchLocks.set(lockKey, current);
-  
+
   try {
     return await current;
   } finally {
@@ -404,7 +467,7 @@ async function withSupplierLaunchLock(supplier, task) {
 // ---------------------------------------------------------------------------
 chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
   if (details.frameId !== 0) return;
-  
+
   try {
     const storageKey = sessionStorageKey(details.tabId);
     const result = await chrome.storage.session.get(storageKey);
@@ -421,205 +484,276 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
 });
 
 // ---------------------------------------------------------------------------
+// Message dispatch helpers
+// ---------------------------------------------------------------------------
+function handleOpenSupplierTab(message, sendResponse) {
+  const { sessionId, supplier, startUrl, userId, launchToken } =
+    message.payload || {};
+  const normalizedSupplier = canonicalSupplier(supplier);
+
+  if (!sessionId || !normalizedSupplier || !startUrl || !launchToken) {
+    sendResponse({ ok: false, error: "Missing session launch details." });
+    return;
+  }
+
+  const config = supplierConfig(normalizedSupplier);
+  if (!config) {
+    sendResponse({ ok: false, error: `Unknown supplier: ${normalizedSupplier}` });
+    return;
+  }
+
+  if (!isAllowedSupplierUrl(startUrl)) {
+    sendResponse({ ok: false, error: `Supplier URL is not approved: ${startUrl}` });
+    return;
+  }
+
+  let startHostname;
+  try {
+    startHostname = new URL(startUrl).hostname;
+  } catch {
+    sendResponse({ ok: false, error: `Invalid supplier URL: ${startUrl}` });
+    return;
+  }
+
+  if (!hostnameInDomains(startHostname, config.domains)) {
+    sendResponse({
+      ok: false,
+      error: `The URL ${startUrl} does not belong to supplier ${normalizedSupplier}.`
+    });
+    return;
+  }
+
+  withSupplierLaunchLock(normalizedSupplier, async () => {
+    await prepareFreshLaunch(normalizedSupplier);
+
+    const tab = await chrome.tabs.create({ url: startUrl, active: true });
+    if (!tab?.id) throw new Error("Could not open the supplier tab.");
+
+    const session = {
+      sessionId,
+      supplier: normalizedSupplier,
+      account: normalizedSupplier,
+      isolationGroup: config.isolationGroup,
+      userId: userId || null,
+      launchToken,
+      tabId: tab.id,
+      startUrl,
+      startedAt: new Date().toISOString()
+    };
+
+    await chrome.storage.session.set({
+      [sessionStorageKey(tab.id)]: session
+    });
+
+    try {
+      await sendEvent(session, {
+        eventType: "session.started",
+        url: startUrl
+      });
+    } catch (error) {
+      console.error(
+        "[SupplierTracker] Failed to report session start:",
+        error
+      );
+    }
+
+    return {
+      ok: true,
+      sessionId,
+      tabId: tab.id,
+      supplier: normalizedSupplier,
+      account: normalizedSupplier
+    };
+  })
+    .then((result) => sendResponse(result))
+    .catch((error) => {
+      console.error("[SupplierTracker] Fresh launch failed:", error);
+      sendResponse({
+        ok: false,
+        error: error?.message || "The supplier launch failed."
+      });
+    });
+}
+
+function handleSupplierEvent(message, sender, sendResponse) {
+  const tabId = sender.tab?.id;
+  if (!tabId) {
+    sendResponse?.({ ok: false, error: "Supplier event did not include a tab ID." });
+    return;
+  }
+
+  const storageKey = sessionStorageKey(tabId);
+  chrome.storage.session
+    .get(storageKey)
+    .then(async (result) => {
+      const session = result[storageKey];
+      if (!session) {
+        return { ok: false, error: "No active supplier session was found." };
+      }
+      await sendEvent(
+        session,
+        message.payload || { eventType: "supplier.unknown_event" }
+      );
+      return { ok: true };
+    })
+    .then((result) => sendResponse?.(result))
+    .catch((error) => {
+      console.error("[SupplierTracker] Failed to send supplier event:", error);
+      sendResponse?.({
+        ok: false,
+        error: error?.message || "Event reporting failed."
+      });
+    });
+}
+
+function handleLoginFormReady(sender, sendResponse) {
+  const tabId = sender.tab?.id;
+  if (!tabId) {
+    sendResponse?.({ ok: false, error: "Login request did not include a tab ID." });
+    return;
+  }
+
+  const storageKey = sessionStorageKey(tabId);
+  chrome.storage.session
+    .get(storageKey)
+    .then(async (result) => {
+      const session = result[storageKey];
+      if (!session) {
+        throw new Error("No active supplier session was found for this tab.");
+      }
+
+      const account = sessionAccount(session);
+      if (!account) {
+        await sendEvent(session, {
+          eventType: "login.credentials_unavailable",
+          metadata: { reason: "missing_account" }
+        }).catch(() => undefined);
+        throw new Error("The supplier account is missing from the session.");
+      }
+
+      try {
+        const credentials = await requestCredentials({ ...session, account });
+        await chrome.tabs
+          .sendMessage(tabId, {
+            type: "FILL_SUPPLIER_LOGIN",
+            payload: credentials
+          })
+          .catch((err) => {
+            // The content script may not be ready yet; surface a warning
+            // but do not fail the whole credential delivery.
+            console.warn(
+              "[SupplierTracker] Content script not reachable for FILL_SUPPLIER_LOGIN:",
+              err
+            );
+          });
+
+        await sendEvent(session, {
+          eventType: "login.credentials_delivered",
+          metadata: { account }
+        }).catch(() => undefined);
+
+        return { ok: true, account };
+      } catch (error) {
+        await sendEvent(session, {
+          eventType: "login.credentials_unavailable",
+          metadata: {
+            reason: error?.message || "credential_request_failed",
+            account
+          }
+        }).catch(() => undefined);
+        throw error;
+      }
+    })
+    .then((result) => sendResponse?.(result))
+    .catch((error) => {
+      console.error("[SupplierTracker] Credential delivery failed:", error);
+      sendResponse?.({
+        ok: false,
+        error: error?.message || "Credential delivery failed."
+      });
+    });
+}
+
+function handleLoginEvent(message, sender, sendResponse) {
+  const tabId = sender.tab?.id;
+  if (!tabId) {
+    sendResponse?.({ ok: false, error: "Login event did not include a tab ID." });
+    return;
+  }
+
+  const storageKey = sessionStorageKey(tabId);
+  chrome.storage.session
+    .get(storageKey)
+    .then(async (result) => {
+      const session = result[storageKey];
+      if (!session) {
+        return { ok: false, error: "No active supplier session was found." };
+      }
+
+      const eventType =
+        message.type === "SUPPLIER_OTP_REQUIRED"
+          ? "login.otp_required"
+          : "login.prelogin_step_completed";
+
+      await sendEvent(session, {
+        eventType,
+        metadata: message.payload || {}
+      });
+      return { ok: true };
+    })
+    .then((result) => sendResponse?.(result))
+    .catch((error) => {
+      console.error("[SupplierTracker] Login event reporting failed:", error);
+      sendResponse?.({
+        ok: false,
+        error: error?.message || "Login event reporting failed."
+      });
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Messages from the web application and content scripts
 // ---------------------------------------------------------------------------
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  
-  // -----------------------------------------------------------------------
-  // Open supplier tab
-  // -----------------------------------------------------------------------
-  if (message?.type === "OPEN_SUPPLIER_TAB") {
-    const { sessionId, supplier, startUrl, userId, launchToken } = message.payload || {};
-    const normalizedSupplier = canonicalSupplier(supplier);
-
-    if (!sessionId || !normalizedSupplier || !startUrl || !launchToken) {
-      sendResponse({ ok: false, error: "Missing session launch details." });
+  try {
+    if (message?.type === "OPEN_SUPPLIER_TAB") {
+      handleOpenSupplierTab(message, sendResponse);
       return true;
     }
 
-    const config = supplierConfig(normalizedSupplier);
-    if (!config) {
-      sendResponse({ ok: false, error: `Unknown supplier: ${normalizedSupplier}` });
+    if (message?.type === "SUPPLIER_EVENT") {
+      handleSupplierEvent(message, sender, sendResponse);
       return true;
     }
 
-    if (!isAllowedSupplierUrl(startUrl)) {
-      sendResponse({ ok: false, error: `Supplier URL is not approved: ${startUrl}` });
+    if (message?.type === "SUPPLIER_LOGIN_FORM_READY") {
+      handleLoginFormReady(sender, sendResponse);
       return true;
     }
 
-    let startHostname;
+    if (
+      message?.type === "SUPPLIER_PRELOGIN_DONE" ||
+      message?.type === "SUPPLIER_OTP_REQUIRED"
+    ) {
+      handleLoginEvent(message, sender, sendResponse);
+      return true;
+    }
+  } catch (error) {
+    // Catches any synchronous throw inside a handler so it does not surface
+    // as an unhandled "(anonymous function)" error in the service-worker log.
+    console.error(
+      "[SupplierTracker] Unhandled error in message listener:",
+      error
+    );
     try {
-      startHostname = new URL(startUrl).hostname;
-    } catch {
-      sendResponse({ ok: false, error: `Invalid supplier URL: ${startUrl}` });
-      return true;
-    }
-
-    if (!hostnameInDomains(startHostname, config.domains)) {
-      sendResponse({
+      sendResponse?.({
         ok: false,
-        error: `The URL ${startUrl} does not belong to supplier ${normalizedSupplier}.`
+        error: error?.message || "Unhandled background error."
       });
-      return true;
+    } catch {
+      /* ignore secondary sendResponse failure */
     }
-
-    withSupplierLaunchLock(normalizedSupplier, async () => {
-      await prepareFreshLaunch(normalizedSupplier);
-      
-      const tab = await chrome.tabs.create({ url: startUrl, active: true });
-      if (!tab?.id) throw new Error("Could not open the supplier tab.");
-
-      const session = {
-        sessionId,
-        supplier: normalizedSupplier,
-        account: normalizedSupplier,
-        isolationGroup: config.isolationGroup,
-        userId: userId || null,
-        launchToken,
-        tabId: tab.id,
-        startUrl,
-        startedAt: new Date().toISOString()
-      };
-
-      await chrome.storage.session.set({ [sessionStorageKey(tab.id)]: session });
-
-      try {
-        await sendEvent(session, { eventType: "session.started", url: startUrl });
-      } catch (error) {
-        console.error("[SupplierTracker] Failed to report session start:", error);
-      }
-
-      return {
-        ok: true,
-        sessionId,
-        tabId: tab.id,
-        supplier: normalizedSupplier,
-        account: normalizedSupplier
-      };
-    })
-      .then((result) => sendResponse(result))
-      .catch((error) => {
-        console.error("[SupplierTracker] Fresh launch failed:", error);
-        sendResponse({ ok: false, error: error?.message || "The supplier launch failed." });
-      });
-
-    return true;
-  }
-
-  // -----------------------------------------------------------------------
-  // Tracking events sent by supplier-tracker.js
-  // -----------------------------------------------------------------------
-  if (message?.type === "SUPPLIER_EVENT") {
-    const tabId = sender.tab?.id;
-    if (!tabId) {
-      sendResponse?.({ ok: false, error: "Supplier event did not include a tab ID." });
-      return false;
-    }
-
-    const storageKey = sessionStorageKey(tabId);
-    chrome.storage.session
-      .get(storageKey)
-      .then(async (result) => {
-        const session = result[storageKey];
-        if (!session) return { ok: false, error: "No active supplier session was found." };
-
-        await sendEvent(session, message.payload || { eventType: "supplier.unknown_event" });
-        return { ok: true };
-      })
-      .then((result) => sendResponse?.(result))
-      .catch((error) => {
-        console.error("[SupplierTracker] Failed to send supplier event:", error);
-        sendResponse?.({ ok: false, error: error?.message || "Event reporting failed." });
-      });
-
-    return true;
-  }
-
-  // -----------------------------------------------------------------------
-  // Login form detected, request credentials
-  // -----------------------------------------------------------------------
-  if (message?.type === "SUPPLIER_LOGIN_FORM_READY") {
-    const tabId = sender.tab?.id;
-    if (!tabId) {
-      sendResponse?.({ ok: false, error: "Login request did not include a tab ID." });
-      return false;
-    }
-
-    const storageKey = sessionStorageKey(tabId);
-    chrome.storage.session
-      .get(storageKey)
-      .then(async (result) => {
-        const session = result[storageKey];
-        if (!session) throw new Error("No active supplier session was found for this tab.");
-
-        const account = sessionAccount(session);
-        if (!account) {
-          await sendEvent(session, {
-            eventType: "login.credentials_unavailable",
-            metadata: { reason: "missing_account" }
-          }).catch(() => undefined);
-          throw new Error("The supplier account is missing from the session.");
-        }
-
-        try {
-          const credentials = await requestCredentials({ ...session, account });
-          await chrome.tabs.sendMessage(tabId, { type: "FILL_SUPPLIER_LOGIN", payload: credentials });
-          await sendEvent(session, {
-            eventType: "login.credentials_delivered",
-            metadata: { account }
-          }).catch(() => undefined);
-          
-          return { ok: true, account };
-        } catch (error) {
-          await sendEvent(session, {
-            eventType: "login.credentials_unavailable",
-            metadata: { reason: error?.message || "credential_request_failed", account }
-          }).catch(() => undefined);
-          throw error;
-        }
-      })
-      .then((result) => sendResponse?.(result))
-      .catch((error) => {
-        console.error("[SupplierTracker] Credential delivery failed:", error);
-        sendResponse?.({ ok: false, error: error?.message || "Credential delivery failed." });
-      });
-
-    return true;
-  }
-
-  // -----------------------------------------------------------------------
-  // Prelogin completion and OTP detection
-  // -----------------------------------------------------------------------
-  if (message?.type === "SUPPLIER_PRELOGIN_DONE" || message?.type === "SUPPLIER_OTP_REQUIRED") {
-    const tabId = sender.tab?.id;
-    if (!tabId) {
-      sendResponse?.({ ok: false, error: "Login event did not include a tab ID." });
-      return false;
-    }
-
-    const storageKey = sessionStorageKey(tabId);
-    chrome.storage.session
-      .get(storageKey)
-      .then(async (result) => {
-        const session = result[storageKey];
-        if (!session) return { ok: false, error: "No active supplier session was found." };
-
-        const eventType =
-          message.type === "SUPPLIER_OTP_REQUIRED"
-            ? "login.otp_required"
-            : "login.prelogin_step_completed";
-
-        await sendEvent(session, { eventType, metadata: message.payload || {} });
-        return { ok: true };
-      })
-      .then((result) => sendResponse?.(result))
-      .catch((error) => {
-        console.error("[SupplierTracker] Login event reporting failed:", error);
-        sendResponse?.({ ok: false, error: error?.message || "Login event reporting failed." });
-      });
-
-    return true;
+    return false;
   }
 
   return false;
@@ -638,16 +772,24 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
     try {
       await sendEvent(session, { eventType: "session.tab_closed" });
     } catch (error) {
-      console.warn("[SupplierTracker] Could not report tab closure:", error);
+      console.warn(
+        "[SupplierTracker] Could not report tab closure:",
+        error
+      );
     } finally {
       await chrome.storage.session.remove(storageKey);
     }
   } catch (error) {
-    console.error("[SupplierTracker] Failed to process tab removal:", error);
+    console.error(
+      "[SupplierTracker] Failed to process tab removal:",
+      error
+    );
   }
 });
 
 // ---------------------------------------------------------------------------
-// Extension startup validation
+// Extension startup
 // ---------------------------------------------------------------------------
-console.info("[SupplierTracker] Background service worker loaded successfully.");
+console.info(
+  "[SupplierTracker] Background service worker loaded successfully."
+);

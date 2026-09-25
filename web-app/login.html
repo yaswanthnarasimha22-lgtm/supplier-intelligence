@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Supplier Session Launcher</title>
+  <link rel="stylesheet" href="/web-app/styles.css">
+</head>
+<body class="auth-body">
+  <div class="auth-bg"></div>
+
+  <main class="auth-shell">
+    <section class="auth-card" aria-labelledby="auth-title">
+      <div class="auth-brand">
+        <div class="auth-brand-mark" aria-hidden="true">TT</div>
+        <div class="auth-brand-text">
+          <div class="auth-brand-name">Teletext Holidays</div>
+          <div class="auth-brand-sub">Supplier Session Launcher</div>
+        </div>
+      </div>
+
+      <h1 id="auth-title" class="auth-title">Welcome back</h1>
+      <p class="auth-subtitle">Sign in to access your managed supplier portals.</p>
+
+      <form id="login-form" class="auth-form" autocomplete="off" novalidate>
+        <label class="auth-field">
+          <span class="auth-label">Username</span>
+          <input type="text" id="login-username" name="username"
+                 required autofocus autocomplete="username"
+                 placeholder="e.g. admin">
+        </label>
+
+        <label class="auth-field">
+          <span class="auth-label">Password</span>
+          <input type="password" id="login-password" name="password"
+                 required autocomplete="current-password"
+                 placeholder="••••••••">
+        </label>
+
+        <div id="login-error" class="auth-error" style="display:none;"></div>
+
+        <button type="submit" class="auth-submit">Sign in</button>
+      </form>
+
+      <p class="auth-hint">
+        Demo credentials: <code>admin / Teletext@2026</code>
+      </p>
+    </section>
+
+    <footer class="auth-footer">
+      &copy; Teletext Holidays · Supplier Intelligence
+    </footer>
+  </main>
+
+  <script type="module" src="/web-app/login.js"></script>
+</body>
+</html>
