@@ -31,12 +31,27 @@ const API_ORIGIN = "http://localhost:3000";
 const SUPPLIER_CONFIG = {
   hotelbeds: {
     domains: ["hotelbeds.com"],
-    isolationGroup: "hotelbeds"
+    isolationGroup: "hotelbeds",
+    // Explicit subdomain origins ensure localStorage/IndexedDB are wiped on
+    // app.hotelbeds.com (where the Angular SPA stores its auth token) in
+    // addition to the root domain cleared by the default derivation.
+    originsToClear: [
+      "https://hotelbeds.com",
+      "https://www.hotelbeds.com",
+      "https://app.hotelbeds.com",
+      "https://discover.hotelbeds.com"
+    ]
   },
 
   hotelbeds2: {
     domains: ["hotelbeds.com"],
-    isolationGroup: "hotelbeds"
+    isolationGroup: "hotelbeds",
+    originsToClear: [
+      "https://hotelbeds.com",
+      "https://www.hotelbeds.com",
+      "https://app.hotelbeds.com",
+      "https://discover.hotelbeds.com"
+    ]
   },
 
   bedswithease: {
@@ -79,12 +94,25 @@ const SUPPLIER_CONFIG = {
 
   w2m: {
     domains: ["w2m.travel"],
-    isolationGroup: "w2m"
+    isolationGroup: "w2m",
+    // Include the OTP subdomain so its localStorage is also wiped.
+    originsToClear: [
+      "https://w2m.travel",
+      "https://www.w2m.travel",
+      "https://dmc.w2m.travel",
+      "https://b2dmc.w2m.travel"
+    ]
   },
 
   w2m2: {
     domains: ["w2m.travel"],
-    isolationGroup: "w2m"
+    isolationGroup: "w2m",
+    originsToClear: [
+      "https://w2m.travel",
+      "https://www.w2m.travel",
+      "https://dmc.w2m.travel",
+      "https://b2dmc.w2m.travel"
+    ]
   }
 };
 
@@ -379,15 +407,22 @@ async function closeTabsForDomains(domains) {
 /**
  * Clears supplier site data.
  *
- * This removes cookies, local storage, IndexedDB, cache storage, service
- * workers, and other supported browser storage for the configured origins.
+ * Removes cookies, localStorage, IndexedDB, cacheStorage, serviceWorkers and
+ * related storage for each origin.  When the supplier config provides an
+ * explicit `originsToClear` list (e.g. to reach subdomains like
+ * app.hotelbeds.com or b2dmc.w2m.travel), those origins are used instead of
+ * the default derivation of "https://<domain>" and "https://www.<domain>".
  */
-async function clearSiteDataForDomains(domains) {
+async function clearSiteDataForDomains(domains, extraOrigins = []) {
   const origins = new Set();
 
   for (const domain of domains) {
     origins.add(`https://${domain}`);
     origins.add(`https://www.${domain}`);
+  }
+
+  for (const origin of (extraOrigins || [])) {
+    origins.add(origin);
   }
 
   await chrome.browsingData.remove(
@@ -515,14 +550,18 @@ async function prepareFreshLaunch(supplier) {
     config
   );
 
-  // The reset message must be sent before tabs are closed.
+  // Reset credential-attempt flags on any existing tabs for this domain group
+  // before clearing state.
   await clearCredentialAttemptFlagsForGroup(config.domains);
 
-  // Closing the old tab prevents the old authenticated page from being reused.
-  await closeTabsForDomains(config.domains);
+  // Do NOT close existing supplier tabs — users may have multiple suppliers
+  // open simultaneously and we should not disrupt them. Each new launch opens
+  // a fresh tab alongside whatever is already open.
 
-  // Clear browser and extension state.
-  await clearSiteDataForDomains(config.domains);
+  // Clear browser storage for all known origins of this supplier (including
+  // explicit subdomains such as app.hotelbeds.com or b2dmc.w2m.travel) so the
+  // new session always starts from a clean state, not a cached one.
+  await clearSiteDataForDomains(config.domains, config.originsToClear);
   await clearCookiesForDomains(config.domains);
   await clearExtensionSessionsForGroup(config.isolationGroup);
 

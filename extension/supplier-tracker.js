@@ -768,20 +768,165 @@ function handlePreLoginStep() {
 
 
 /* ==================================================================
- *  OTP DETECTION
+ *  OTP DETECTION AND POPUP
  * ================================================================== */
 
+/**
+ * Detect an OTP field and show a secure popup for the agent to enter the
+ * code.  Two cases are handled:
+ *
+ *  A. Same-page OTP — the OTP field appears on the same page as the login
+ *     form after credentials were submitted (loginFilled = true).
+ *
+ *  B. Standalone OTP page — the browser was redirected to a dedicated OTP
+ *     page after submitting credentials (e.g. b2dmc.w2m.travel/users/login
+ *     .aspx). The content script is freshly injected; loginFilled is false
+ *     and neither the username nor the password field is present.
+ *
+ * In both cases the full-page overlay is kept active (or re-shown) so the
+ * agent never sees the raw credential or OTP page content.
+ */
 function checkForOtp() {
   if (otpDetected) return;
-  if (!loginFilled) return;
+
+  // Case B: standalone OTP page — no login form fields present.
+  const { username, password } = findLoginFields();
+  const isOtpOnlyPage = !username && !password;
+
+  if (!loginFilled && !isOtpOnlyPage) return;
 
   const otpField = findElement(adapter.otpSelectors);
-  if (otpField) {
-    otpDetected = true;
-    removeLoginOverlay();
-    showOtpNotice();
-    reportEvent("login.otp_required", {}, true);
-    chrome.runtime.sendMessage({ type: "SUPPLIER_OTP_REQUIRED" });
+  if (!otpField) return;
+
+  otpDetected = true;
+
+  // Keep the page hidden while the popup is displayed.
+  showLoginOverlay();
+
+  showOtpPopup(otpField);
+  reportEvent("login.otp_required", {}, true);
+  chrome.runtime.sendMessage({ type: "SUPPLIER_OTP_REQUIRED" });
+}
+
+/**
+ * Show a modal popup on top of the login overlay asking the agent to enter
+ * the OTP code.  Once confirmed the extension fills the OTP field, ticks the
+ * terms-and-conditions checkbox (if the adapter configures one), and clicks
+ * the supplier's OTP submit button — all while the page remains hidden.
+ */
+function showOtpPopup(otpField) {
+  removeOtpNotice();
+
+  if (document.getElementById("sil-otp-popup")) return;
+
+  const popup = document.createElement("div");
+  popup.id = "sil-otp-popup";
+  popup.innerHTML = `
+    <div class="sil-otp-card">
+      <span class="sil-otp-icon">🔐</span>
+      <div class="sil-otp-title">Verification Required</div>
+      <div class="sil-otp-desc">Enter the one-time code sent to your registered email or phone, then click Confirm.</div>
+      <input type="text" id="sil-otp-input" class="sil-otp-input"
+             placeholder="OTP code" maxlength="20" autocomplete="off"
+             inputmode="numeric">
+      <button id="sil-otp-submit-btn" class="sil-otp-submit-btn">Confirm &amp; Submit</button>
+      <div id="sil-otp-error" class="sil-otp-error" style="display:none;">Please enter the OTP code before confirming.</div>
+    </div>
+  `;
+
+  document.documentElement.appendChild(popup);
+
+  const otpInput = popup.querySelector("#sil-otp-input");
+  const submitBtn = popup.querySelector("#sil-otp-submit-btn");
+  const errorDiv = popup.querySelector("#sil-otp-error");
+
+  async function handleOtpSubmit() {
+    const otpValue = (otpInput.value || "").trim();
+    if (!otpValue) {
+      errorDiv.style.display = "block";
+      return;
+    }
+
+    errorDiv.style.display = "none";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Submitting…";
+
+    popup.remove();
+    await fillOtpAndSubmit(otpValue, otpField);
+  }
+
+  submitBtn.addEventListener("click", handleOtpSubmit);
+  otpInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleOtpSubmit();
+  });
+
+  // Prevent the overlay's pointer-events rule from blocking input inside the card.
+  otpInput.style.setProperty("pointer-events", "all", "important");
+  submitBtn.style.setProperty("pointer-events", "all", "important");
+
+  setTimeout(() => {
+    if (otpInput && otpInput.isConnected) otpInput.focus();
+  }, 150);
+}
+
+/**
+ * Fill the OTP value into the supplier's OTP field, tick the terms checkbox
+ * (if configured by the adapter), then click the submit button.
+ */
+async function fillOtpAndSubmit(otpValue, otpField) {
+  try {
+    if (!otpField || !otpField.isConnected) {
+      otpField = findElement(adapter.otpSelectors);
+    }
+
+    if (!otpField) {
+      reportEvent("login.otp_field_not_found", {}, true);
+      return;
+    }
+
+    otpField.focus();
+    setFieldValue(otpField, otpValue);
+    otpField.dispatchEvent(new Event("input", { bubbles: true }));
+    otpField.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await delay(300);
+
+    // Tick terms-and-conditions checkbox (W2M OTP page requirement).
+    const termsCheckbox = findElement(adapter.otpTermsCheckboxSelectors || []);
+    if (termsCheckbox) {
+      if (
+        termsCheckbox.tagName === "INPUT" &&
+        termsCheckbox.type === "checkbox"
+      ) {
+        if (!termsCheckbox.checked) {
+          termsCheckbox.click();
+          termsCheckbox.checked = true;
+          termsCheckbox.dispatchEvent(new Event("change", { bubbles: true }));
+          termsCheckbox.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      } else {
+        termsCheckbox.click();
+      }
+      reportEvent("login.otp_terms_ticked", {}, true);
+      await delay(300);
+    }
+
+    // Click the OTP page's submit button.
+    const otpSubmitBtn = findElement(adapter.otpSubmitSelectors || []);
+    if (otpSubmitBtn) {
+      otpSubmitBtn.scrollIntoView({ block: "center", inline: "center" });
+      otpSubmitBtn.focus();
+      HTMLElement.prototype.click.call(otpSubmitBtn);
+      reportEvent("login.otp_submitted", {}, true);
+    } else {
+      reportEvent("login.otp_submit_button_not_found", {}, true);
+    }
+  } catch (err) {
+    reportEvent(
+      "login.otp_fill_error",
+      { reason: (err && err.message) || "unknown" },
+      true
+    );
   }
 }
 
@@ -1396,6 +1541,9 @@ observer.observe(document.documentElement, {
  * ================================================================== */
 
 dismissCookieBanner();
+// Also check for an OTP field on the very first tick (handles standalone OTP
+// pages where the content script is injected fresh after a redirect).
+checkForOtp();
 
 // After the cookie delay, dismiss cookies again, decide whether the banner is
 // absent, and attempt the first pre-login/form detection.
@@ -1404,6 +1552,7 @@ setTimeout(() => {
   markCookieDoneIfBannerAbsent();
   handlePreLoginStep();
   inspectLoginForm();
+  checkForOtp();
 }, adapter.cookieDelay || 800);
 
 // After cookie + pre-login delays, make a final attempt.
@@ -1411,6 +1560,7 @@ setTimeout(() => {
   markCookieDoneIfBannerAbsent();
   handlePreLoginStep();
   inspectLoginForm();
+  checkForOtp();
 }, (adapter.cookieDelay || 800) + (adapter.preLoginDelay || 1000));
 
 

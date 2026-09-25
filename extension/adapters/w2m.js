@@ -50,7 +50,8 @@ globalThis.SupplierAdapters.w2m = {
     "input[type='checkbox'].mdc-checkbox__native-control"
   ],
 
-  // OTP selectors — when detected, the agent enters the code manually.
+  // OTP selectors — the extension shows a secure popup for the agent to enter
+  // the code; it is then auto-filled and the form is submitted automatically.
   otpSelectors: [
     "#prehome-login-multi-login-box-_ctl1_pageBody_MultiLoginBox_agencyLoginBox-verificationCode",
     "input[id*='verificationCode' i]",
@@ -58,6 +59,23 @@ globalThis.SupplierAdapters.w2m = {
     "input[name*='otp' i]",
     "input[id*='otp' i]",
     "input[name*='code' i]"
+  ],
+
+  // Terms-and-conditions checkbox that must be ticked before the OTP submit
+  // button becomes active on b2dmc.w2m.travel/users/login.aspx.
+  // Note: the ID contains a literal space, escaped as "\ " in CSS selectors.
+  otpTermsCheckboxSelectors: [
+    "#prehome-login-multi-login-box-_ctl1_pageBody_MultiLoginBox_agencyLoginBox-terms\\ and\\ conditions",
+    "input[id*='terms'][type='checkbox']",
+    "input[id*='condition'][type='checkbox']",
+    "input[name*='terms'][type='checkbox']"
+  ],
+
+  // Login button on the OTP page that submits the code + checkbox.
+  otpSubmitSelectors: [
+    "#prehome-login-multi-login-box-agency-panel > div > div:nth-child(5) > div.col-xs-4.pull-right.text-right > button",
+    "#prehome-login-multi-login-box-agency-panel button[type='submit']",
+    "#prehome-login-multi-login-box-agency-panel button"
   ],
 
   // Supplier-specific error selector — "Incorrect password" paragraph.
