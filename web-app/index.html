@@ -9,8 +9,22 @@
 <body>
   <header class="top-bar">
     <div class="top-bar-inner">
-      <span class="logo">Supplier Tracker</span>
-      <span id="extension-status" class="status-badge">Checking extension…</span>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">TT</div>
+        <div class="brand-text">
+          <div class="brand-title">Teletext Holidays</div>
+          <div class="brand-subtitle">Supplier Session Launcher</div>
+        </div>
+      </div>
+
+      <div class="top-bar-actions">
+        <span id="extension-status" class="status-badge">Checking extension…</span>
+        <div class="user-menu">
+          <span class="user-avatar" aria-hidden="true"></span>
+          <span id="user-name" class="user-name">Agent</span>
+          <button id="signout-btn" class="signout-btn">Sign out</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -23,66 +37,99 @@
     <section class="supplier-grid" aria-labelledby="launch-title">
       <h2 id="launch-title" class="sr-only">Launch a supplier portal</h2>
 
-      <button class="supplier-card card-violet" data-supplier="hotelbeds">
-        <span class="card-name">Hotelbeds1MAF</span>
-        <span class="card-url">discover.hotelbeds.com</span>
-        <span class="card-account">Account 1</span>
+      <button class="supplier-card card-violet" data-supplier="hotelbeds" data-image="hotelbeds.png">
+        <span class="card-media"><img alt="" data-supplier-img="hotelbeds"></span>
+        <span class="card-body">
+          <span class="card-name">Hotelbeds1MAF</span>
+          <span class="card-url">discover.hotelbeds.com</span>
+          <span class="card-account">Account 1</span>
+        </span>
       </button>
 
-      <button class="supplier-card card-orange" data-supplier="hotelbeds2">
-        <span class="card-name">Hotelbeds2MA</span>
-        <span class="card-url">discover.hotelbeds.com</span>
-        <span class="card-account">Account 2</span>
+      <button class="supplier-card card-orange" data-supplier="hotelbeds2" data-image="hotelbeds2.png">
+        <span class="card-media"><img alt="" data-supplier-img="hotelbeds2"></span>
+        <span class="card-body">
+          <span class="card-name">Hotelbeds2MA</span>
+          <span class="card-url">discover.hotelbeds.com</span>
+          <span class="card-account">Account 2</span>
+        </span>
       </button>
 
-      <button class="supplier-card" data-supplier="bedswithease">
-        <span class="card-name">Beds With Ease</span>
-        <span class="card-url">bedswithease.com</span>
+      <button class="supplier-card" data-supplier="bedswithease" data-image="bedswithease.png">
+        <span class="card-media"><img alt="" data-supplier-img="bedswithease"></span>
+        <span class="card-body">
+          <span class="card-name">Beds With Ease</span>
+          <span class="card-url">bedswithease.com</span>
+        </span>
       </button>
 
-      <button class="supplier-card" data-supplier="alturabeds">
-        <span class="card-name">Altura Beds</span>
-        <span class="card-url">alturabeds.com</span>
+      <button class="supplier-card" data-supplier="alturabeds" data-image="alturabeds.png">
+        <span class="card-media"><img alt="" data-supplier-img="alturabeds"></span>
+        <span class="card-body">
+          <span class="card-name">Altura Beds</span>
+          <span class="card-url">alturabeds.com</span>
+        </span>
       </button>
 
-      <button class="supplier-card" data-supplier="sunhotels">
-        <span class="card-name">SunHotels</span>
-        <span class="card-url">sunhotels.com</span>
+      <button class="supplier-card" data-supplier="sunhotels" data-image="sunhotels.png">
+        <span class="card-media"><img alt="" data-supplier-img="sunhotels"></span>
+        <span class="card-body">
+          <span class="card-name">SunHotels</span>
+          <span class="card-url">sunhotels.com</span>
+        </span>
       </button>
 
-      <button class="supplier-card" data-supplier="suninternational">
-        <span class="card-name">Sun International</span>
-        <span class="card-url">sunegypt.com</span>
+      <button class="supplier-card" data-supplier="suninternational" data-image="suninternational.png">
+        <span class="card-media"><img alt="" data-supplier-img="suninternational"></span>
+        <span class="card-body">
+          <span class="card-name">Sun International</span>
+          <span class="card-url">sunegypt.com</span>
+        </span>
       </button>
 
-      <button class="supplier-card" data-supplier="suntransfers">
-        <span class="card-name">SunTransfers</span>
-        <span class="card-url">partners.suntransfers.com</span>
+      <button class="supplier-card" data-supplier="suntransfers" data-image="suntransfers.png">
+        <span class="card-media"><img alt="" data-supplier-img="suntransfers"></span>
+        <span class="card-body">
+          <span class="card-name">SunTransfers</span>
+          <span class="card-url">partners.suntransfers.com</span>
+        </span>
       </button>
 
-      <button class="supplier-card" data-supplier="stours">
-        <span class="card-name">S Tours</span>
-        <span class="card-url">cyberlogic.cloud</span>
+      <button class="supplier-card" data-supplier="stours" data-image="stours.png">
+        <span class="card-media"><img alt="" data-supplier-img="stours"></span>
+        <span class="card-body">
+          <span class="card-name">S Tours</span>
+          <span class="card-url">cyberlogic.cloud</span>
+        </span>
       </button>
 
-      <button class="supplier-card" data-supplier="yalago">
-        <span class="card-name">Yalago</span>
-        <span class="card-url">affiliate.yalago.com</span>
+      <button class="supplier-card" data-supplier="yalago" data-image="yalago.png">
+        <span class="card-media"><img alt="" data-supplier-img="yalago"></span>
+        <span class="card-body">
+          <span class="card-name">Yalago</span>
+          <span class="card-url">affiliate.yalago.com</span>
+        </span>
         <span class="card-badge">OTP</span>
       </button>
 
-      <button class="supplier-card card-violet" data-supplier="w2m">
-        <span class="card-name">W2M HTRUS1</span>
-        <span class="card-url">dmc.w2m.travel</span>
+      <button class="supplier-card card-violet" data-supplier="w2m" data-image="w2m.png">
+        <span class="card-media"><img alt="" data-supplier-img="w2m"></span>
+        <span class="card-body">
+          <span class="card-name">W2M HTRUS1</span>
+          <span class="card-url">dmc.w2m.travel</span>
+          <span class="card-account">Account 1</span>
+        </span>
         <span class="card-badge">OTP</span>
-        <span class="card-account">Account 1</span>
       </button>
 
-      <button class="supplier-card card-orange" data-supplier="w2m2">
-        <span class="card-name">W2M TLSHOT</span>
-        <span class="card-url">dmc.w2m.travel</span>
+      <button class="supplier-card card-orange" data-supplier="w2m2" data-image="w2m2.png">
+        <span class="card-media"><img alt="" data-supplier-img="w2m2"></span>
+        <span class="card-body">
+          <span class="card-name">W2M TLSHOT</span>
+          <span class="card-url">dmc.w2m.travel</span>
+          <span class="card-account">Account 2</span>
+        </span>
         <span class="card-badge">OTP</span>
-        <span class="card-account">Account 2</span>
       </button>
     </section>
 

@@ -71,7 +71,12 @@ const server = createServer(async (request, response) => {
     }
 
     /* Static file serving for the web app */
-    const requestedPath = url.pathname === "/" ? "/web-app/index.html" : url.pathname;
+    let requestedPath = url.pathname;
+    if (requestedPath === "/" || requestedPath === "/web-app/") {
+      // The launcher gates every visit behind the login page; app.js in
+      // /web-app/index.html re-redirects onward when a session already exists.
+      requestedPath = "/web-app/login.html";
+    }
     const filePath = normalize(join(rootDirectory, requestedPath));
     if (!filePath.startsWith(rootDirectory)) {
       sendJson(response, 403, { error: "Forbidden" });

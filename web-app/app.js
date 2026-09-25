@@ -1,9 +1,43 @@
 import { attachSupplierLaunchButton } from "./src/components/SupplierLaunchButton.jsx";
 import { extensionReady } from "./src/services/supplierSession.js";
+import { requireSession, signOut } from "./src/services/auth.js";
+
+/* Gate every page load behind the login flow. */
+const session = requireSession();
+if (!session) {
+  // requireSession() has already redirected; stop bootstrapping.
+  throw new Error("Not authenticated");
+}
 
 const extensionStatus = document.querySelector("#extension-status");
 const launchStatus = document.querySelector("#launch-status");
 const eventListContainer = document.querySelector("#event-list");
+const userNameEl = document.querySelector("#user-name");
+const signOutBtn = document.querySelector("#signout-btn");
+
+/* Show the signed-in agent name in the header. */
+if (userNameEl) userNameEl.textContent = session.displayName || session.username;
+
+/* Sign out button — clear session and return to login page. */
+if (signOutBtn) {
+  signOutBtn.addEventListener("click", () => {
+    signOut();
+    window.location.replace("/web-app/login.html");
+  });
+}
+
+/* Load supplier logos with a graceful fallback initial. */
+for (const img of document.querySelectorAll("img[data-supplier-img]")) {
+  const key = img.dataset.supplierImg;
+  img.src = `/web-app/images/${key}.png`;
+  img.addEventListener("error", () => {
+    // Replace the broken <img> with a coloured initial as a fallback.
+    const parent = img.parentElement;
+    if (!parent) return;
+    parent.classList.add("card-media-fallback");
+    parent.textContent = (key || "?").slice(0, 2).toUpperCase();
+  }, { once: true });
+}
 
 function setLaunchStatus(message, type = "info") {
   launchStatus.textContent = message;
