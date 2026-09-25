@@ -20,14 +20,14 @@
       </div>
 
       <h1 id="auth-title" class="auth-title">Welcome back</h1>
-      <p class="auth-subtitle">Sign in to access your managed supplier portals.</p>
+      <p class="auth-subtitle">Sign in with your Cognito account, or use a demo agent account below.</p>
 
       <form id="login-form" class="auth-form" autocomplete="off" novalidate>
         <label class="auth-field">
-          <span class="auth-label">Username</span>
+          <span class="auth-label">Username or email</span>
           <input type="text" id="login-username" name="username"
                  required autofocus autocomplete="username"
-                 placeholder="e.g. admin">
+                 placeholder="e.g. agent1 or you@example.com">
         </label>
 
         <label class="auth-field">
@@ -40,6 +40,29 @@
         <div id="login-error" class="auth-error" style="display:none;"></div>
 
         <button type="submit" class="auth-submit">Sign in</button>
+      </form>
+
+      <!-- Follow-up form shown when Cognito requests MFA or a new password. -->
+      <form id="challenge-form" class="auth-form" autocomplete="off" novalidate style="display:none;">
+        <p id="challenge-message" class="auth-subtitle" style="margin-top:8px;"></p>
+
+        <label class="auth-field" id="challenge-code-field" style="display:none;">
+          <span class="auth-label">Verification code</span>
+          <input type="text" id="challenge-code"
+                 autocomplete="one-time-code" inputmode="numeric"
+                 placeholder="123456">
+        </label>
+
+        <label class="auth-field" id="challenge-newpass-field" style="display:none;">
+          <span class="auth-label">New password</span>
+          <input type="password" id="challenge-newpass"
+                 autocomplete="new-password"
+                 placeholder="Set a new password">
+        </label>
+
+        <div id="challenge-error" class="auth-error" style="display:none;"></div>
+
+        <button type="submit" class="auth-submit">Confirm</button>
       </form>
 
       <p class="auth-hint">

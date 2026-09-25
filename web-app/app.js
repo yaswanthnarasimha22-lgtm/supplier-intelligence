@@ -1,6 +1,6 @@
 import { attachSupplierLaunchButton } from "./src/components/SupplierLaunchButton.jsx";
 import { extensionReady } from "./src/services/supplierSession.js";
-import { requireSession, signOut } from "./src/services/auth.js";
+import { requireSession, signOut, withAuth } from "./src/services/auth.js";
 
 /* Gate every page load behind the login flow. */
 const session = requireSession();
@@ -18,11 +18,16 @@ const signOutBtn = document.querySelector("#signout-btn");
 /* Show the signed-in agent name in the header. */
 if (userNameEl) userNameEl.textContent = session.displayName || session.username;
 
-/* Sign out button — clear session and return to login page. */
+/* Sign out button — clear session (and revoke Cognito tokens) then return
+   to the login page.  We do not block the redirect on the network call. */
 if (signOutBtn) {
-  signOutBtn.addEventListener("click", () => {
-    signOut();
-    window.location.replace("/web-app/login.html");
+  signOutBtn.addEventListener("click", async () => {
+    signOutBtn.disabled = true;
+    try {
+      await signOut();
+    } finally {
+      window.location.replace("/web-app/login.html");
+    }
   });
 }
 
@@ -67,7 +72,7 @@ function formatTime(isoString) {
 
 async function refreshEvents() {
   try {
-    const response = await fetch("/api/supplier-events");
+    const response = await fetch("/api/supplier-events", withAuth());
     const { events } = await response.json();
     eventListContainer.innerHTML = "";
 

@@ -1,12 +1,14 @@
+import { withAuth } from "./auth.js";
+
 const APP_ORIGIN = window.location.origin;
 
 export async function openSupplierSession(supplier) {
-	const response = await fetch("/api/supplier-sessions", {
+	const response = await fetch("/api/supplier-sessions", withAuth({
 		method: "POST",
 		credentials: "include",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ supplier })
-	});
+	}));
 
 	if (!response.ok) {
 		const body = await response.json().catch(() => ({}));

@@ -536,11 +536,18 @@ function isStandaloneOtpPage() {
   );
 }
 
+// The W2M panel `#prehome-login-multi-login-box-agency-panel` is rendered on
+// the same URL as the main login, so we cannot rely on the pathname alone —
+// we treat the presence of that panel (or any adapter-configured OTP field)
+// as evidence that the user has moved into the OTP step of the flow.
+function hasSupplierOtpPanel() {
+  return Boolean(document.querySelector("#prehome-login-multi-login-box-agency-panel"));
+}
+
 function findOtpField() {
-  if (isW2mHost() && !isStandaloneOtpPage()) return null;
   const configured = findElement(adapter.otpSelectors || []);
   if (configured && isElementVisible(configured)) return configured;
-  if (!isStandaloneOtpPage()) return null;
+  if (!isStandaloneOtpPage() && !hasSupplierOtpPanel()) return null;
   const candidates = document.querySelectorAll(
     "input:not([type='hidden']):not([type='checkbox']):not([type='submit']):not([type='button'])"
   );
@@ -559,18 +566,17 @@ function findOtpField() {
 
 function checkForOtp() {
   if (otpDetected) return;
-  const standaloneOtp = isStandaloneOtpPage();
-  if (isW2mHost() && !standaloneOtp) return;
-  
+
   const otpField = findOtpField();
   if (!otpField) return;
-  
-  const { username, password } = findLoginFields();
+
+  const standaloneOtp = isStandaloneOtpPage() || hasSupplierOtpPanel();
+
+  // On generic (non-W2M / non-standalone) hosts we still want to wait until
+  // credentials have been submitted before treating a stray "code" input as
+  // an OTP prompt, to avoid false positives on the initial login page.
   if (!loginFilled && !standaloneOtp) return;
-  
-  // FIX APPLIED: Removed the restrictive early return that aborted the popup
-  // if username/password fields happened to exist on the OTP page.
-  
+
   otpDetected = true;
   showLoginOverlay();
   showOtpPopup();
