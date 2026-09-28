@@ -1,20 +1,52 @@
 import { appendSessionEvent } from "./create-session";
 
+// A bounded in-memory tail of the freshest events for the launcher UI's
+// event log.  Persistence (per-session JSON + per-day JSONL + per-agent
+// JSONL) is handled inside `appendSessionEvent` so nothing is lost even
+// when this window is trimmed.
 const receivedEvents = [];
+const MAX_TAIL = 500;
 
 export async function ingestEvent(event, authorization) {
   const requiredFields = ["eventId", "sessionId", "supplier", "eventType", "occurredAt"];
   const missingField = requiredFields.find((field) => !event?.[field]);
   if (missingField) return { error: `Missing event field: ${missingField}`, status: 400 };
 
-  const storedEvent = { ...event, receivedAt: new Date().toISOString() };
-  const result = await appendSessionEvent(storedEvent, authorization);
+  const stampedEvent = {
+    ...event,
+    receivedAt: new Date().toISOString()
+  };
+
+  const result = await appendSessionEvent(stampedEvent, authorization);
   if (result.error) return result;
-  receivedEvents.unshift(storedEvent);
-  if (receivedEvents.length > 200) receivedEvents.length = 200;
+
+  // Use whatever appendSessionEvent enriched (adds the authoritative userId
+  // from the session record) so the UI displays a trustworthy identity.
+  const authoritativeEvent = result.body?.event || stampedEvent;
+
+  receivedEvents.unshift(authoritativeEvent);
+  if (receivedEvents.length > MAX_TAIL) receivedEvents.length = MAX_TAIL;
+
   return result;
 }
 
-export function listEvents() {
-  return [...receivedEvents];
+/**
+ * Return the tail of recent events.  Optional filters mimic what the
+ * production reporting API will support (see docs/BACKEND_HANDOFF.md).
+ */
+export function listEvents({ agent, supplier, eventType, limit = 200 } = {}) {
+  let rows = receivedEvents;
+
+  if (agent) {
+    const target = String(agent).toLowerCase();
+    rows = rows.filter((e) => String(e.userId || "").toLowerCase() === target);
+  }
+  if (supplier) {
+    const target = String(supplier).toLowerCase();
+    rows = rows.filter((e) => String(e.supplier || "").toLowerCase() === target);
+  }
+  if (eventType) {
+    rows = rows.filter((e) => e.eventType === eventType);
+  }
+  return rows.slice(0, Math.max(1, Math.min(limit, MAX_TAIL)));
 }

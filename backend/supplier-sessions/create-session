@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, appendFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 // ---------------------------------------------------------------------------
@@ -81,34 +81,114 @@ function getCredentialEnvVars(supplierKey) {
 }
 
 // ---------------------------------------------------------------------------
-// Session store
+// Session store — in-memory index + file-backed record + per-user / per-day
+// append logs.  The JSONL files mirror the future database rows exactly, so
+// the migration path is `cat *.jsonl | insert`.  See docs/BACKEND_HANDOFF.md.
 // ---------------------------------------------------------------------------
 
 const sessionsById = new Map();
 const sessionRecordsById = new Map();
-const sessionDataDirectory = fileURLToPath(
-  new URL("../session-data/", import.meta.url)
-);
+
+const sessionDataDirectory = fileURLToPath(new URL("../session-data/", import.meta.url));
+const sessionsDirectory    = fileURLToPath(new URL("../session-data/sessions/", import.meta.url));
+const agentsDirectory      = fileURLToPath(new URL("../session-data/agents/",   import.meta.url));
+const eventsDirectory      = fileURLToPath(new URL("../session-data/events/",   import.meta.url));
+const bySupplierDirectory  = fileURLToPath(new URL("../session-data/by-supplier/", import.meta.url));
 
 function sessionFilePath(sessionId) {
-  return `${sessionDataDirectory}${sessionId}.json`;
+  return `${sessionsDirectory}${sessionId}.json`;
+}
+
+function agentIndexPath(username) {
+  const safe = String(username || "unknown").replace(/[^a-zA-Z0-9._-]/g, "_");
+  return `${agentsDirectory}${safe}.jsonl`;
+}
+
+function dailyEventLogPath(occurredAt) {
+  const day = new Date(occurredAt || Date.now()).toISOString().slice(0, 10); // YYYY-MM-DD
+  return `${eventsDirectory}${day}.jsonl`;
+}
+
+function supplierDailyLogPath(supplier, occurredAt) {
+  const day = new Date(occurredAt || Date.now()).toISOString().slice(0, 10);
+  const safeSupplier = String(supplier || "unknown").replace(/[^a-z0-9_-]/gi, "_");
+  return `${bySupplierDirectory}${safeSupplier}/${day}.jsonl`;
+}
+
+async function ensureDirectories() {
+  await Promise.all([
+    mkdir(sessionsDirectory,   { recursive: true }),
+    mkdir(agentsDirectory,     { recursive: true }),
+    mkdir(eventsDirectory,     { recursive: true }),
+    mkdir(bySupplierDirectory, { recursive: true })
+  ]);
 }
 
 async function saveSessionRecord(record) {
-  await mkdir(sessionDataDirectory, { recursive: true });
+  await ensureDirectories();
   await writeFile(
     sessionFilePath(record.sessionId),
     `${JSON.stringify(record, null, 2)}\n`
   );
 }
 
+async function appendAgentSessionIndex(record) {
+  const username = record.agent?.username || record.userId || "unknown";
+  await ensureDirectories();
+  // One row per session-start, matches the future `supplier_sessions` row.
+  const row = {
+    sessionId: record.sessionId,
+    userId: username,
+    userSub: record.agent?.sub || null,
+    userEmail: record.agent?.email || null,
+    authProvider: record.agent?.provider || null,
+    supplier: record.supplier,
+    supplierLabel: record.supplierLabel,
+    startUrl: record.startUrl,
+    startedAt: record.createdAt,
+    client: record.client || null
+  };
+  await appendFile(agentIndexPath(username), `${JSON.stringify(row)}\n`);
+}
+
+async function appendEventLogs(event) {
+  await ensureDirectories();
+  const line = `${JSON.stringify(event)}\n`;
+  const supplierDir = supplierDailyLogPath(event.supplier, event.occurredAt);
+  await mkdir(supplierDir.slice(0, supplierDir.lastIndexOf("/")), { recursive: true });
+  await Promise.all([
+    appendFile(dailyEventLogPath(event.occurredAt), line),
+    appendFile(supplierDir, line),
+    // Per-agent event stream so `tail -f agents/<username>.events.jsonl`
+    // shows what one agent is doing in real time.
+    appendFile(
+      agentIndexPath(`${event.userId || "unknown"}.events`),
+      line
+    )
+  ]);
+}
+
 // ---------------------------------------------------------------------------
 // API
 // ---------------------------------------------------------------------------
 
+function normalizeAgent(rawAgent) {
+  if (!rawAgent || typeof rawAgent !== "object") return null;
+  const username = String(rawAgent.username || rawAgent.userId || "").trim();
+  if (!username) return null;
+  return {
+    userId: username,
+    username,
+    displayName: String(rawAgent.displayName || username),
+    email: rawAgent.email ? String(rawAgent.email) : null,
+    sub: rawAgent.sub ? String(rawAgent.sub) : null,
+    provider: rawAgent.provider ? String(rawAgent.provider) : "unknown",
+    signedInAt: rawAgent.signedInAt || null
+  };
+}
+
 export async function createSession(payload) {
   // Accept both "supplier" and "account" for backward compatibility.
-  // The web app sends { supplier: "hotelbeds" }.
   const key = String(payload?.account || payload?.supplier || "").toLowerCase();
 
   if (!key) {
@@ -121,12 +201,16 @@ export async function createSession(payload) {
     return { error: "Supplier is not approved for launch.", status: 400 };
   }
 
+  const agent = normalizeAgent(payload?.agent);
+  const userId = agent?.username || payload?.userId || "demo-agent";
+
   const session = {
     sessionId: `sup_sess_${randomUUID()}`,
     supplier: key,
     supplierLabel: configuration.label,
     startUrl: configuration.startUrl,
-    userId: payload?.userId || "demo-agent",
+    userId,
+    agent,
     launchToken: randomUUID()
   };
 
@@ -137,15 +221,36 @@ export async function createSession(payload) {
     supplier: session.supplier,
     supplierLabel: session.supplierLabel,
     startUrl: session.startUrl,
-    userId: session.userId,
+    userId,
+    agent,
+    client: payload?.client || null,
     createdAt: new Date().toISOString(),
+    endedAt: null,
+    eventCount: 0,
     events: []
   };
 
   sessionRecordsById.set(session.sessionId, record);
   await saveSessionRecord(record);
+  await appendAgentSessionIndex(record).catch((err) =>
+    console.warn("[SupplierTracker] agent index append failed:", err?.message)
+  );
 
-  return { status: 201, body: session };
+  // The response body reflects what the extension needs; agent is included
+  // so downstream code can carry it verbatim without re-reading auth state.
+  return {
+    status: 201,
+    body: {
+      sessionId: session.sessionId,
+      supplier: session.supplier,
+      supplierLabel: session.supplierLabel,
+      startUrl: session.startUrl,
+      userId,
+      agent,
+      launchToken: session.launchToken,
+      startedAt: record.createdAt
+    }
+  };
 }
 
 export function getSessionCredentials(sessionId, authorization) {
@@ -187,7 +292,56 @@ export async function appendSessionEvent(event, authorization) {
     return { error: "Invalid supplier session.", status: 401 };
   }
 
-  record.events.push(event);
+  // Denormalize the session's authenticated agent onto the event.  The
+  // client (extension) already tries to stamp userId; we overwrite from the
+  // server-known session so a compromised extension cannot forge a
+  // different agent's userId.
+  const authoritativeAgent = record.agent || null;
+  const enrichedEvent = {
+    ...event,
+    userId: authoritativeAgent?.username || event.userId || record.userId || "unknown",
+    userSub: authoritativeAgent?.sub || event.userSub || null,
+    userEmail: authoritativeAgent?.email || event.userEmail || null,
+    authProvider: authoritativeAgent?.provider || event.authProvider || null,
+    supplier: record.supplier,
+    supplierLabel: record.supplierLabel
+  };
+
+  record.events.push(enrichedEvent);
+  record.eventCount = record.events.length;
+  if (enrichedEvent.eventType === "session.tab_closed") {
+    record.endedAt = enrichedEvent.occurredAt || new Date().toISOString();
+  }
+
   await saveSessionRecord(record);
-  return { status: 202, body: { accepted: true } };
+  await appendEventLogs(enrichedEvent).catch((err) =>
+    console.warn("[SupplierTracker] event log append failed:", err?.message)
+  );
+  return { status: 202, body: { accepted: true, event: enrichedEvent } };
+}
+
+// Read-only helpers useful for the future reporting API.  A backend team can
+// swap the implementation for a DB query without changing the callers.
+export function findSessionsByAgent(username) {
+  const target = String(username || "").toLowerCase();
+  const rows = [];
+  for (const record of sessionRecordsById.values()) {
+    const rowUsername = (record.agent?.username || record.userId || "").toLowerCase();
+    if (rowUsername === target) rows.push(record);
+  }
+  return rows.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+}
+
+export function findEventsByAgent(username, limit = 500) {
+  const target = String(username || "").toLowerCase();
+  const events = [];
+  for (const record of sessionRecordsById.values()) {
+    const rowUsername = (record.agent?.username || record.userId || "").toLowerCase();
+    if (rowUsername !== target) continue;
+    for (const event of record.events) events.push(event);
+    if (events.length >= limit * 2) break;
+  }
+  return events
+    .sort((a, b) => (b.occurredAt || "").localeCompare(a.occurredAt || ""))
+    .slice(0, limit);
 }

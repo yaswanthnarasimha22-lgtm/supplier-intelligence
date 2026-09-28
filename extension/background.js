@@ -219,12 +219,21 @@ async function sendEvent(session, eventPayload = {}) {
     throw new Error("Cannot send event without a launch token.");
   }
 
+  // Denormalize the authenticated agent identity onto every event so the
+  // stream is queryable without a session-side join.  This matches the
+  // shape the future `supplier_events` table will store — see
+  // docs/BACKEND_HANDOFF.md.
+  const agent = session.agent || null;
+
   const payload = {
     ...eventPayload,
     eventId: eventPayload.eventId || newEventId(),
     sessionId: session.sessionId,
     supplier: canonicalSupplier(session.supplier),
-    userId: session.userId || null,
+    userId: agent?.userId || agent?.username || session.userId || null,
+    userSub: agent?.sub || null,
+    userEmail: agent?.email || null,
+    authProvider: agent?.provider || null,
     tabId: session.tabId || null,
     occurredAt:
       eventPayload.occurredAt ||
@@ -487,7 +496,7 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
 // Message dispatch helpers
 // ---------------------------------------------------------------------------
 function handleOpenSupplierTab(message, sendResponse) {
-  const { sessionId, supplier, startUrl, userId, launchToken } =
+  const { sessionId, supplier, startUrl, userId, launchToken, agent } =
     message.payload || {};
   const normalizedSupplier = canonicalSupplier(supplier);
 
@@ -534,7 +543,11 @@ function handleOpenSupplierTab(message, sendResponse) {
       supplier: normalizedSupplier,
       account: normalizedSupplier,
       isolationGroup: config.isolationGroup,
-      userId: userId || null,
+      // Keep the legacy top-level userId for backward compatibility with
+      // any consumer reading old session records; new consumers should
+      // read `session.agent` instead.
+      userId: agent?.username || userId || null,
+      agent: agent || null,
       launchToken,
       tabId: tab.id,
       startUrl,

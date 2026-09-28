@@ -113,14 +113,44 @@ function buildStaticSession(user) {
     username: user.username,
     displayName: user.displayName,
     signedInAt: new Date().toISOString(),
-    authProvider: "static"
+    authProvider: "static",
+    sub: null,
+    email: null
   };
 }
 
+/**
+ * Extract the payload claims from a JWT.  We are not verifying the signature
+ * here — the token was returned by Cognito over TLS on the same request, so
+ * we trust it enough to read the claims into the session.  Server-side JWT
+ * verification (with JWKS) still runs on every protected API call.
+ */
+function decodeJwtPayload(token) {
+  if (!token || typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const padded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = atob(padded + "===".slice((padded.length + 3) % 4));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 function buildCognitoSession(username, authResult) {
+  const idClaims = decodeJwtPayload(authResult.IdToken) || {};
+  const cognitoUsername = idClaims["cognito:username"] || username.trim();
+
   return {
-    username: username.trim(),
-    displayName: username.trim(),
+    // `username` is what the rest of the app displays and what the
+    // extension will stamp on every event as `userId`.  We prefer the
+    // canonical Cognito username (from the token) over what the agent
+    // typed, so "Yaswanth" and "yaswanth" resolve to the same identity.
+    username: cognitoUsername,
+    displayName: cognitoUsername,
+    email: idClaims.email || null,
+    sub: idClaims.sub || null,
     signedInAt: new Date().toISOString(),
     authProvider: "cognito",
     tokens: {
@@ -239,6 +269,26 @@ export async function respondToChallenge({
   } catch (error) {
     return { ok: false, error: mapCognitoError(error) };
   }
+}
+
+/**
+ * The stable, portable identity object we attach to a supplier session and
+ * every subsequent event.  This is the exact shape the future database
+ * table `agents` will store — do not add/remove fields without updating the
+ * backend hand-off spec (see docs/BACKEND_HANDOFF.md).
+ */
+export function agentIdentity() {
+  const session = currentSession();
+  if (!session) return null;
+  return {
+    userId: session.username,          // what appears on every event as `userId`
+    username: session.username,
+    displayName: session.displayName || session.username,
+    email: session.email || null,
+    sub: session.sub || null,          // Cognito immutable id (null for static demo users)
+    provider: session.authProvider || "unknown",
+    signedInAt: session.signedInAt || null
+  };
 }
 
 export function currentSession() {

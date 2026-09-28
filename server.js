@@ -2,7 +2,12 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createSession, getSessionCredentials } from "./backend/supplier-sessions/create-session";
+import {
+  createSession,
+  getSessionCredentials,
+  findSessionsByAgent,
+  findEventsByAgent
+} from "./backend/supplier-sessions/create-session";
 import { ingestEvent, listEvents } from "./backend/supplier-sessions/ingest-event";
 
 const rootDirectory = fileURLToPath(new URL(".", import.meta.url));
@@ -64,9 +69,38 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    /* GET /api/supplier-events — list recent events */
+    /* GET /api/supplier-events — list recent events, optionally filtered.
+       Query params (all optional): agent, supplier, eventType, limit.
+       Example: /api/supplier-events?agent=yaswanth&supplier=hotelbeds  */
     if (request.method === "GET" && url.pathname === "/api/supplier-events") {
-      sendJson(response, 200, { events: listEvents() });
+      const events = listEvents({
+        agent: url.searchParams.get("agent") || undefined,
+        supplier: url.searchParams.get("supplier") || undefined,
+        eventType: url.searchParams.get("eventType") || undefined,
+        limit: Number(url.searchParams.get("limit") || 200)
+      });
+      sendJson(response, 200, { events });
+      return;
+    }
+
+    /* GET /api/agents/:username/sessions — every supplier session an agent
+       has opened.  Read-only mirror of the future SQL:
+         SELECT * FROM supplier_sessions WHERE username = $1 ORDER BY started_at DESC */
+    const agentSessionsMatch = url.pathname.match(/^\/api\/agents\/([^/]+)\/sessions$/);
+    if (request.method === "GET" && agentSessionsMatch) {
+      const sessions = findSessionsByAgent(decodeURIComponent(agentSessionsMatch[1]));
+      sendJson(response, 200, { username: decodeURIComponent(agentSessionsMatch[1]), sessions });
+      return;
+    }
+
+    /* GET /api/agents/:username/events — every event an agent has fired.
+       Read-only mirror of the future SQL:
+         SELECT * FROM supplier_events WHERE username = $1 ORDER BY occurred_at DESC */
+    const agentEventsMatch = url.pathname.match(/^\/api\/agents\/([^/]+)\/events$/);
+    if (request.method === "GET" && agentEventsMatch) {
+      const limit = Number(url.searchParams.get("limit") || 500);
+      const events = findEventsByAgent(decodeURIComponent(agentEventsMatch[1]), limit);
+      sendJson(response, 200, { username: decodeURIComponent(agentEventsMatch[1]), events });
       return;
     }
 

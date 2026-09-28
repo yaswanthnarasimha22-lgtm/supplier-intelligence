@@ -1,0 +1,323 @@
+# Supplier Intelligence — session & event tracking spec
+
+**Audience:** the backend / database team who will host the session and
+activity data for production.
+
+**Goal:** every supplier session an agent opens, and every action they take
+inside a supplier portal (clicks, navigation, login submits, OTPs, booking
+confirmations), lands in a durable, queryable store keyed by the agent's
+Cognito identity, so any supervisor can answer *"what was Yaswanth doing on
+Hotelbeds at 14:20 today?"* in one query.
+
+The launcher, extension, and Node dev server are already emitting data in
+the exact shape below. The dev server writes it to newline-delimited JSON
+files under `backend/session-data/`. Moving to a real database is a matter
+of pointing the ingest handler at your table instead of the local file.
+
+---
+
+## 1. Identity model
+
+Every session and every event carries the authenticated agent identity,
+sourced from AWS Cognito (User Pool `eu-west-1_1yghGdnkD`, app client
+`5e80b7ijtpsgfgt4sjnktakmqr`).
+
+```jsonc
+{
+  "userId":      "yaswanth",                              // the Cognito username — human-readable, used everywhere
+  "username":    "yaswanth",                              // same value; kept for symmetry with the DB column
+  "displayName": "Yaswanth",
+  "email":       "yaswanthd@zen3.com",
+  "sub":         "2235b494-3041-7009-3a94-d9d1a4146235",  // Cognito immutable id, do NOT rename users on this
+  "provider":    "cognito",                               // or "static" for demo accounts
+  "signedInAt":  "2026-09-28T09:11:57.412Z"
+}
+```
+
+The authoritative field for joins/indexes is `sub` (immutable). `username`
+is denormalized onto every row because that's the string humans will use
+when filtering.
+
+---
+
+## 2. Event contract
+
+An **event** is one immutable row describing one action an agent took.
+The extension generates the `eventId` (client-side UUID) so re-delivery is
+idempotent — use it as the primary key or a UNIQUE constraint.
+
+```jsonc
+{
+  "eventId":      "evt_ab12cd34...",
+  "sessionId":    "sup_sess_2f9a...",
+  "userId":       "yaswanth",
+  "userSub":      "2235b494-3041-...",
+  "userEmail":    "yaswanthd@zen3.com",
+  "authProvider": "cognito",
+  "supplier":     "hotelbeds",
+  "supplierLabel":"Hotelbeds1MAF",
+  "eventType":    "interaction.click",              // see § 4
+  "occurredAt":   "2026-09-28T09:12:44.201Z",       // client wall-clock (Z / ISO-8601)
+  "receivedAt":   "2026-09-28T09:12:44.317Z",       // server wall-clock — trust this for ordering
+  "url":          "https://discover.hotelbeds.com/booking/…",
+  "pageTitle":    "Search results",
+  "tabId":        1174,
+  "metadata": {
+    "element":  "button",
+    "elementId":"book-now",
+    "label":    "Book"
+  }
+}
+```
+
+Rules:
+
+- Fields prefixed `user*` and `supplier*` are denormalized on purpose — do
+  not require a join to display them.
+- `metadata` is free-form JSON. Postgres: `JSONB` with a GIN index. DynamoDB:
+  a nested map. Analysts should be able to `metadata->>'label'` (or DynamoDB
+  equivalent) without schema migration.
+- `occurredAt` is authored by the client and can drift. `receivedAt` is
+  authored by our server. Order by `receivedAt` when replaying a session;
+  order by `occurredAt` when a human is reading it.
+
+---
+
+## 3. Session contract
+
+A **session** is one supplier tab opened by an agent — created by
+`POST /api/supplier-sessions`, closed when the tab is closed (marked by
+event `session.tab_closed`) or 24 h after the last event, whichever comes
+first.
+
+```jsonc
+{
+  "sessionId":     "sup_sess_2f9a...",
+  "supplier":      "hotelbeds",
+  "supplierLabel": "Hotelbeds1MAF",
+  "startUrl":      "https://discover.hotelbeds.com/",
+  "userId":        "yaswanth",
+  "agent":         { /* the identity object from § 1 */ },
+  "client": {
+    "userAgent": "Mozilla/5.0 …",
+    "language":  "en-GB",
+    "timezone":  "Europe/London"
+  },
+  "createdAt":  "2026-09-28T09:11:59.001Z",
+  "endedAt":    "2026-09-28T09:47:11.008Z",         // null while the tab is still open
+  "eventCount": 42
+}
+```
+
+---
+
+## 4. Event vocabulary
+
+The extension emits these event types today. All are prefixed by domain so
+the vocabulary is extensible:
+
+| Prefix         | Examples                                                             | Meaning                                              |
+|----------------|-----------------------------------------------------------------------|------------------------------------------------------|
+| `session.`     | `session.started`, `session.tab_closed`                              | Session lifecycle                                    |
+| `page.`        | `page.loaded`, `page.cookie_accepted`, `page.cookie_banner_not_present` | Portal page transitions                            |
+| `login.`       | `login.form_detected`, `login.credentials_filled`, `login.submitted`, `login.otp_required`, `login.otp_submitted`, `login.failed`, `login.dashboard_detected` | Authentication flow                                  |
+| `shield.`      | `shield.overlay_shown`, `shield.overlay_removed`, `shield.mask_reapplied`, `shield.credentials_wiped_from_dom` | The credential-hiding shield's state changes       |
+| `interaction.` | `interaction.click`                                                  | Agent clicks inside the portal                       |
+| `navigation.`  | `navigation.spa_route_change`                                        | SPA route changes reported by `webNavigation`        |
+| `booking.`     | `booking.confirmation_detected`                                      | Booking-completion heuristic                         |
+
+New event types can be added freely — the schema is `eventType TEXT`; the
+prefix carries the category.
+
+---
+
+## 5. HTTP API — current and future
+
+Everything below is the same request/response shape the Node dev server
+already implements. Reimplement in whatever framework you use; keep the
+wire contract identical.
+
+### 5.1 Write path
+
+```
+POST /api/supplier-sessions
+Authorization: Bearer <cognito access token>          ← future: server verifies via JWKS
+Body:
+  {
+    "supplier": "hotelbeds",
+    "agent":  { … as § 1 … },                          ← client-supplied today; ignored once JWT verification is on
+    "client": { "userAgent": "…", "language": "…", "timezone": "…" }
+  }
+201 Created:
+  {
+    "sessionId":   "sup_sess_…",
+    "launchToken": "<uuid>",                           ← used by the extension for /api/supplier-events
+    "supplier":    "hotelbeds",
+    "startUrl":    "https://discover.hotelbeds.com/",
+    "userId":      "yaswanth",
+    "agent":       { … },
+    "startedAt":   "…Z"
+  }
+```
+
+```
+POST /api/supplier-events
+Authorization: Bearer <launchToken from create-session>
+Body: the event object from § 2 (server enriches userId etc. from the session)
+202 Accepted:
+  { "accepted": true, "event": { … enriched event … } }
+```
+
+### 5.2 Read path (reporting)
+
+```
+GET /api/supplier-events?agent=<username>&supplier=<key>&eventType=<type>&limit=<n>
+GET /api/agents/<username>/sessions
+GET /api/agents/<username>/events?limit=<n>
+```
+
+Behind the DB these map to:
+
+```sql
+SELECT * FROM supplier_events
+ WHERE username = $agent
+   AND supplier = COALESCE($supplier, supplier)
+ ORDER BY received_at DESC
+ LIMIT $limit;
+```
+
+---
+
+## 6. Suggested table design
+
+### 6.1 PostgreSQL (recommended for reporting / joins)
+
+```sql
+CREATE TABLE agents (
+  user_sub      UUID PRIMARY KEY,             -- Cognito sub, immutable
+  username      TEXT NOT NULL UNIQUE,
+  email         TEXT,
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at  TIMESTAMPTZ
+);
+
+CREATE TABLE supplier_sessions (
+  session_id       TEXT PRIMARY KEY,          -- sup_sess_<uuid>
+  user_sub         UUID NOT NULL REFERENCES agents(user_sub),
+  username         TEXT NOT NULL,             -- denormalized
+  supplier         TEXT NOT NULL,
+  supplier_label   TEXT NOT NULL,
+  start_url        TEXT NOT NULL,
+  started_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ended_at         TIMESTAMPTZ,
+  duration_ms      INTEGER GENERATED ALWAYS AS
+                   (EXTRACT(EPOCH FROM (ended_at - started_at)) * 1000)::int STORED,
+  event_count      INTEGER NOT NULL DEFAULT 0,
+  user_agent       TEXT,
+  language         TEXT,
+  timezone         TEXT
+);
+
+CREATE INDEX ON supplier_sessions (user_sub, started_at DESC);
+CREATE INDEX ON supplier_sessions (username, started_at DESC);
+CREATE INDEX ON supplier_sessions (supplier, started_at DESC);
+CREATE INDEX ON supplier_sessions (started_at DESC);
+
+CREATE TABLE supplier_events (
+  event_id      TEXT PRIMARY KEY,             -- extension-supplied UUID, idempotency
+  session_id    TEXT NOT NULL REFERENCES supplier_sessions(session_id),
+  user_sub      UUID NOT NULL,                -- denormalized
+  username      TEXT NOT NULL,                -- denormalized
+  supplier      TEXT NOT NULL,                -- denormalized
+  event_type    TEXT NOT NULL,
+  occurred_at   TIMESTAMPTZ NOT NULL,         -- client clock
+  received_at   TIMESTAMPTZ NOT NULL DEFAULT now(),   -- server clock (ordering key)
+  url           TEXT,
+  page_title    TEXT,
+  metadata      JSONB
+);
+
+CREATE INDEX ON supplier_events (user_sub,   received_at DESC);
+CREATE INDEX ON supplier_events (username,   received_at DESC);
+CREATE INDEX ON supplier_events (session_id, received_at DESC);
+CREATE INDEX ON supplier_events (supplier,   received_at DESC);
+CREATE INDEX ON supplier_events (event_type, received_at DESC);
+CREATE INDEX ON supplier_events USING GIN (metadata);
+
+-- 12-month retention example; adjust per policy.
+-- Consider table partitioning by month once volume grows past ~50M rows.
+```
+
+**Sizing note** — 80–100 agents, ~10 events/second peak, ~5M events/day
+worst case. That is *comfortable* for a single Postgres instance for years;
+partition by month if you cross ~50M rows.
+
+### 6.2 DynamoDB (recommended if you prefer serverless)
+
+Single-table design:
+
+| PK                     | SK                                        | Notes                              |
+|------------------------|-------------------------------------------|------------------------------------|
+| `SESSION#<sessionId>`  | `META#`                                   | Session record                     |
+| `SESSION#<sessionId>`  | `EVENT#<occurredAt>#<eventId>`            | One event                          |
+
+Global secondary indexes:
+
+- **GSI-user-time** — PK `USER#<username>`, SK `<occurredAt>` — feeds
+  "everything agent X did between T1 and T2."
+- **GSI-supplier-time** — PK `SUPPLIER#<key>`, SK `<occurredAt>` — feeds
+  supplier-side reporting.
+- Enable **TTL** on hot events (e.g. 30 d) and **DynamoDB Streams →
+  Firehose → S3** for the long-tail archive.
+
+---
+
+## 7. Local dev — file layout the ingest handler writes today
+
+Under `backend/session-data/`:
+
+```
+sessions/<sessionId>.json          canonical session record (updated in place)
+agents/<username>.jsonl            append-only: one row per session that agent started
+agents/<username>.events.jsonl     append-only: one row per event that agent fired
+events/<YYYY-MM-DD>.jsonl          append-only: every event, all agents, that day
+by-supplier/<supplier>/<YYYY-MM-DD>.jsonl   append-only: same, partitioned by supplier
+```
+
+Every `.jsonl` line matches the DB row shape one-for-one, so the migration
+is literally:
+
+```bash
+find backend/session-data/events -name '*.jsonl' -print0 |
+  xargs -0 cat |
+  psql -c "COPY supplier_events (data) FROM STDIN"
+```
+
+(or `aws dynamodb batch-write-item`, etc.).
+
+---
+
+## 8. Security & retention
+
+1. **JWT verification on write.** `POST /api/supplier-sessions` and
+   `POST /api/supplier-events` must verify the caller's Cognito access
+   token against JWKS
+   (`https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_1yghGdnkD/.well-known/jwks.json`).
+   Reject on missing/invalid/expired. The server-verified `sub`/`username`
+   from the token is authoritative; ignore any conflicting `agent` field
+   in the request body.
+2. **PII scrubbing.** Redact anything that looks like a password, OTP,
+   or credit-card in `metadata.*` before persisting.
+3. **Retention.** 90 days hot (DB / DynamoDB TTL), 7 years cold (S3 Object
+   Lock in compliance mode).
+4. **Supervisor access.** Guard the read endpoints in § 5.2 with a Cognito
+   group check (e.g. `cognito:groups` contains `Supervisor`).
+
+---
+
+## 9. Non-goals
+
+- We are **not** storing supplier credentials in the DB. Those stay in the
+  application server's Secrets Manager (or `.env` in dev).
+- We are **not** capturing keystrokes or screenshots. Only the click/nav/OTP
+  events listed in § 4.
