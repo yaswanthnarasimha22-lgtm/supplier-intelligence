@@ -461,7 +461,12 @@ PRE-LOGIN STEP
 ================================================================== */
 function handlePreLoginStep() {
   const { username, password } = findLoginFields();
-  if (username && password) {
+  // Only treat pre-login as complete when the login inputs are actually
+  // visible.  Suppliers like Alturabeds render the login form inside a
+  // hidden modal at page load, so the fields exist in the DOM but the
+  // agent has not opened them yet — we still need to click the header
+  // "Sign in" button (adapter.preLoginSelectors) to reveal the modal.
+  if (username && password && isElementVisible(username) && isElementVisible(password)) {
     preLoginDone = true;
     return;
   }
@@ -827,6 +832,11 @@ LOGIN FORM INSPECTION
 function inspectLoginForm() {
   const { username, password } = findLoginFields();
   if (!username || !password) return;
+  // Wait for the modal (or wrapping panel) to be visible before we ask for
+  // credentials.  Filling a hidden form causes suppliers like Alturabeds
+  // to appear unresponsive because the inputs the tracker types into are
+  // not the ones the user is looking at once the modal finally opens.
+  if (!isElementVisible(username) || !isElementVisible(password)) return;
   reportEvent("login.form_detected", {}, true);
   if (credentialRequestSent) return;
   

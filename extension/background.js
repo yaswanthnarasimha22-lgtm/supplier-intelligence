@@ -219,21 +219,16 @@ async function sendEvent(session, eventPayload = {}) {
     throw new Error("Cannot send event without a launch token.");
   }
 
-  // Denormalize the authenticated agent identity onto every event so the
-  // stream is queryable without a session-side join.  This matches the
-  // shape the future `supplier_events` table will store — see
-  // docs/BACKEND_HANDOFF.md.
-  const agent = session.agent || null;
-
+  // Event objects are intentionally slim — agent identity and supplier
+  // label are stored ONCE per session (see the session record) and joined
+  // on `sessionId` at read/ingest time.  This keeps the Elastic doc size
+  // low without losing information, since sessionId → agent is a cheap
+  // O(1) lookup from the sessions index.  See docs/BACKEND_HANDOFF.md.
   const payload = {
     ...eventPayload,
     eventId: eventPayload.eventId || newEventId(),
     sessionId: session.sessionId,
     supplier: canonicalSupplier(session.supplier),
-    userId: agent?.userId || agent?.username || session.userId || null,
-    userSub: agent?.sub || null,
-    userEmail: agent?.email || null,
-    authProvider: agent?.provider || null,
     tabId: session.tabId || null,
     occurredAt:
       eventPayload.occurredAt ||
@@ -241,6 +236,13 @@ async function sendEvent(session, eventPayload = {}) {
       new Date().toISOString()
   };
   delete payload.timestamp;
+  // Ensure the extension never leaks per-agent fields on the wire — the
+  // server is authoritative and stamps identity via the session record.
+  delete payload.userId;
+  delete payload.userSub;
+  delete payload.userEmail;
+  delete payload.authProvider;
+  delete payload.supplierLabel;
 
   return backendFetch("/api/supplier-events", {
     method: "POST",

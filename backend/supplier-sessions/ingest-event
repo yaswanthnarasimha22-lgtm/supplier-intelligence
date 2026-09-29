@@ -1,9 +1,13 @@
-import { appendSessionEvent } from "./create-session";
+import { appendSessionEvent, getSessionAgentUsername } from "./create-session";
 
 // A bounded in-memory tail of the freshest events for the launcher UI's
 // event log.  Persistence (per-session JSON + per-day JSONL + per-agent
 // JSONL) is handled inside `appendSessionEvent` so nothing is lost even
 // when this window is trimmed.
+//
+// Events themselves are stored slim (no denormalized userId/email).
+// The `agent=` filter below resolves the session→username lookup via
+// `getSessionAgentUsername` — one-way dependency, no circular imports.
 const receivedEvents = [];
 const MAX_TAIL = 500;
 
@@ -20,11 +24,10 @@ export async function ingestEvent(event, authorization) {
   const result = await appendSessionEvent(stampedEvent, authorization);
   if (result.error) return result;
 
-  // Use whatever appendSessionEvent enriched (adds the authoritative userId
-  // from the session record) so the UI displays a trustworthy identity.
-  const authoritativeEvent = result.body?.event || stampedEvent;
+  const slimEvent = result.body?.event || stampedEvent;
 
-  receivedEvents.unshift(authoritativeEvent);
+  // Keep the tail plus its session→agent hint so filters below stay O(1).
+  receivedEvents.unshift(slimEvent);
   if (receivedEvents.length > MAX_TAIL) receivedEvents.length = MAX_TAIL;
 
   return result;
@@ -33,13 +36,18 @@ export async function ingestEvent(event, authorization) {
 /**
  * Return the tail of recent events.  Optional filters mimic what the
  * production reporting API will support (see docs/BACKEND_HANDOFF.md).
+ * The `agent` filter uses the session→username index because events
+ * themselves are stored slim.
  */
 export function listEvents({ agent, supplier, eventType, limit = 200 } = {}) {
   let rows = receivedEvents;
 
   if (agent) {
     const target = String(agent).toLowerCase();
-    rows = rows.filter((e) => String(e.userId || "").toLowerCase() === target);
+    rows = rows.filter((e) => {
+      const username = getSessionAgentUsername(e.sessionId);
+      return username && username.toLowerCase() === target;
+    });
   }
   if (supplier) {
     const target = String(supplier).toLowerCase();
