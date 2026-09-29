@@ -151,21 +151,23 @@ async function appendAgentSessionIndex(record) {
   await appendFile(agentIndexPath(username), `${JSON.stringify(row)}\n`);
 }
 
-async function appendEventLogs(event) {
+async function appendEventLogs(event, username) {
   await ensureDirectories();
   const line = `${JSON.stringify(event)}\n`;
   const supplierDir = supplierDailyLogPath(event.supplier, event.occurredAt);
   await mkdir(supplierDir.slice(0, supplierDir.lastIndexOf("/")), { recursive: true });
-  await Promise.all([
+  const writes = [
     appendFile(dailyEventLogPath(event.occurredAt), line),
-    appendFile(supplierDir, line),
-    // Per-agent event stream so `tail -f agents/<username>.events.jsonl`
-    // shows what one agent is doing in real time.
-    appendFile(
-      agentIndexPath(`${event.userId || "unknown"}.events`),
-      line
-    )
-  ]);
+    appendFile(supplierDir, line)
+  ];
+  // Per-agent event stream: since the event object itself no longer
+  // carries the agent, the username is passed in explicitly by the
+  // caller (from the session record).  The filename encodes the agent so
+  // the file is still trivially greppable.
+  if (username) {
+    writes.push(appendFile(agentIndexPath(`${username}.events`), line));
+  }
+  await Promise.all(writes);
 }
 
 // ---------------------------------------------------------------------------
@@ -202,6 +204,9 @@ export async function createSession(payload) {
   }
 
   const agent = normalizeAgent(payload?.agent);
+  // Kept only for in-memory lookups and legacy consumers; NOT persisted on
+  // the session record — the record carries `agent` as the single source
+  // of truth for identity.
   const userId = agent?.username || payload?.userId || "demo-agent";
 
   const session = {
@@ -209,19 +214,21 @@ export async function createSession(payload) {
     supplier: key,
     supplierLabel: configuration.label,
     startUrl: configuration.startUrl,
-    userId,
+    userId,          // in-memory only
     agent,
     launchToken: randomUUID()
   };
 
   sessionsById.set(session.sessionId, session);
 
+  // Session record shape (persisted): identity appears exactly once as
+  // `agent`.  Events stored below carry only the join key (`sessionId`)
+  // and their own attributes.
   const record = {
     sessionId: session.sessionId,
     supplier: session.supplier,
     supplierLabel: session.supplierLabel,
     startUrl: session.startUrl,
-    userId,
     agent,
     client: payload?.client || null,
     createdAt: new Date().toISOString(),
@@ -292,53 +299,76 @@ export async function appendSessionEvent(event, authorization) {
     return { error: "Invalid supplier session.", status: 401 };
   }
 
-  // Denormalize the session's authenticated agent onto the event.  The
-  // client (extension) already tries to stamp userId; we overwrite from the
-  // server-known session so a compromised extension cannot forge a
-  // different agent's userId.
-  const authoritativeAgent = record.agent || null;
-  const enrichedEvent = {
-    ...event,
-    userId: authoritativeAgent?.username || event.userId || record.userId || "unknown",
-    userSub: authoritativeAgent?.sub || event.userSub || null,
-    userEmail: authoritativeAgent?.email || event.userEmail || null,
-    authProvider: authoritativeAgent?.provider || event.authProvider || null,
-    supplier: record.supplier,
-    supplierLabel: record.supplierLabel
+  // Events are stored slim — agent identity and supplierLabel live once on
+  // the session record and are joined at read time (or hydrated at Elastic
+  // ingest).  We strip any client-supplied identity fields here to make
+  // sure a compromised extension cannot forge them.
+  const slimEvent = {
+    eventId:    event.eventId,
+    sessionId:  event.sessionId,
+    supplier:   record.supplier,
+    eventType:  event.eventType,
+    occurredAt: event.occurredAt,
+    receivedAt: event.receivedAt,
+    url:        event.url || null,
+    pageTitle:  event.pageTitle || null,
+    tabId:      event.tabId || null,
+    metadata:   event.metadata || null
   };
 
-  record.events.push(enrichedEvent);
+  record.events.push(slimEvent);
   record.eventCount = record.events.length;
-  if (enrichedEvent.eventType === "session.tab_closed") {
-    record.endedAt = enrichedEvent.occurredAt || new Date().toISOString();
+  if (slimEvent.eventType === "session.tab_closed") {
+    record.endedAt = slimEvent.occurredAt || new Date().toISOString();
   }
 
   await saveSessionRecord(record);
-  await appendEventLogs(enrichedEvent).catch((err) =>
+  await appendEventLogs(slimEvent, record.agent?.username).catch((err) =>
     console.warn("[SupplierTracker] event log append failed:", err?.message)
   );
-  return { status: 202, body: { accepted: true, event: enrichedEvent } };
+
+  // Return the slim event so the caller (ingest-event) can echo it back
+  // to the UI event log; the launcher looks up agent info by sessionId
+  // only when it needs to display it.
+  return { status: 202, body: { accepted: true, event: slimEvent } };
 }
 
 // Read-only helpers useful for the future reporting API.  A backend team can
 // swap the implementation for a DB query without changing the callers.
+/**
+ * Look up the agent's username for a session — used by the ingest-event
+ * `agent=` filter so that events can stay slim (no per-event userId).
+ * Returns null when the session is unknown to this process.
+ */
+export function getSessionAgentUsername(sessionId) {
+  return sessionRecordsById.get(sessionId)?.agent?.username || null;
+}
+
 export function findSessionsByAgent(username) {
   const target = String(username || "").toLowerCase();
   const rows = [];
   for (const record of sessionRecordsById.values()) {
-    const rowUsername = (record.agent?.username || record.userId || "").toLowerCase();
+    const rowUsername = String(record.agent?.username || "").toLowerCase();
     if (rowUsername === target) rows.push(record);
   }
   return rows.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
+/**
+ * Return slim events for one agent, ordered newest-first.  Because events
+ * are stored without embedded identity, we hydrate on the way out for API
+ * callers by attaching the parent session's agent as a sibling field.
+ * (The stored file remains slim; only this API projection is hydrated.)
+ */
 export function findEventsByAgent(username, limit = 500) {
   const target = String(username || "").toLowerCase();
   const events = [];
   for (const record of sessionRecordsById.values()) {
-    const rowUsername = (record.agent?.username || record.userId || "").toLowerCase();
+    const rowUsername = String(record.agent?.username || "").toLowerCase();
     if (rowUsername !== target) continue;
-    for (const event of record.events) events.push(event);
+    for (const event of record.events) {
+      events.push({ ...event, agent: record.agent, supplierLabel: record.supplierLabel });
+    }
     if (events.length >= limit * 2) break;
   }
   return events

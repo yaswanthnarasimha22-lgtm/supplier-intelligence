@@ -46,34 +46,43 @@ An **event** is one immutable row describing one action an agent took.
 The extension generates the `eventId` (client-side UUID) so re-delivery is
 idempotent — use it as the primary key or a UNIQUE constraint.
 
+Events are stored **slim** — the agent's identity and the supplier label
+live once on the parent session record and are joined at read/ingest time.
+This keeps each Elastic document small; per-agent queries hit the
+`supplier_sessions` (or `sessions` index) once and then filter events by
+`sessionId`.
+
 ```jsonc
 {
-  "eventId":      "evt_ab12cd34...",
-  "sessionId":    "sup_sess_2f9a...",
-  "userId":       "yaswanth",
-  "userSub":      "2235b494-3041-...",
-  "userEmail":    "yaswanthd@zen3.com",
-  "authProvider": "cognito",
-  "supplier":     "hotelbeds",
-  "supplierLabel":"Hotelbeds1MAF",
-  "eventType":    "interaction.click",              // see § 4
-  "occurredAt":   "2026-09-28T09:12:44.201Z",       // client wall-clock (Z / ISO-8601)
-  "receivedAt":   "2026-09-28T09:12:44.317Z",       // server wall-clock — trust this for ordering
-  "url":          "https://discover.hotelbeds.com/booking/…",
-  "pageTitle":    "Search results",
-  "tabId":        1174,
-  "metadata": {
-    "element":  "button",
-    "elementId":"book-now",
-    "label":    "Book"
-  }
+  "eventId":    "evt_ab12cd34...",
+  "sessionId":  "sup_sess_2f9a...",                // join key back to the session (and its agent)
+  "supplier":   "hotelbeds",                       // kept because cheap filter, small string
+  "eventType":  "interaction.click",               // see § 4
+  "occurredAt": "2026-09-28T09:12:44.201Z",        // client wall-clock (Z / ISO-8601)
+  "receivedAt": "2026-09-28T09:12:44.317Z",        // server wall-clock — trust this for ordering
+  "url":        "https://discover.hotelbeds.com/booking/…",
+  "pageTitle":  "Search results",
+  "tabId":      1174,
+  "metadata":   { "element": "button", "elementId": "book-now", "label": "Book" }
 }
 ```
 
 Rules:
 
-- Fields prefixed `user*` and `supplier*` are denormalized on purpose — do
-  not require a join to display them.
+- **Identity is NOT stamped on each event.** `userId` / `userSub` / `email`
+  / `authProvider` live once on the session record.  When pushing into
+  Elastic you have two choices:
+    1. **Push slim.**  Store events as-is; use a runtime enrichment or
+       Elastic's `enrich` processor keyed on `sessionId` when running
+       user-scoped queries.
+    2. **Hydrate at ingest.**  Your ingest pipeline reads the session doc
+       once per session (they're rare compared to events) and adds
+       `agent.username` to each event before indexing.  Elastic dictionary-
+       encodes repeated strings so the storage overhead is small and
+       queries stay single-index.
+  Either works; we recommend option 2 for reporting-heavy workloads.
+- `supplierLabel` (the human-readable "Hotelbeds1MAF" style name) also
+  lives once on the session record.
 - `metadata` is free-form JSON. Postgres: `JSONB` with a GIN index. DynamoDB:
   a nested map. Analysts should be able to `metadata->>'label'` (or DynamoDB
   equivalent) without schema migration.
@@ -96,8 +105,7 @@ first.
   "supplier":      "hotelbeds",
   "supplierLabel": "Hotelbeds1MAF",
   "startUrl":      "https://discover.hotelbeds.com/",
-  "userId":        "yaswanth",
-  "agent":         { /* the identity object from § 1 */ },
+  "agent":         { /* the identity object from § 1 — appears exactly once */ },
   "client": {
     "userAgent": "Mozilla/5.0 …",
     "language":  "en-GB",
@@ -108,6 +116,10 @@ first.
   "eventCount": 42
 }
 ```
+
+Identity (`agent`) lives here and nowhere else on the wire.  If your
+Elastic ingest pipeline needs it on every event doc, denormalize it in
+the pipeline — do not require the client to re-send it on each event.
 
 ---
 

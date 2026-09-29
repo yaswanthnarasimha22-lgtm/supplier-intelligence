@@ -39,7 +39,19 @@
   --shadow-md: 0 4px 16px rgba(91, 45, 142, 0.08);
   --shadow-lg: 0 20px 48px rgba(91, 45, 142, 0.18);
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Montserrat", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Fira Code", monospace;
+
+  /* Login background — drop an image at /web-app/images/login-bg.jpg to override */
+  --auth-bg-image: url("/web-app/images/login-bg.jpg");
+}
+
+/* Every heading in the app uses Montserrat, body text uses Inter (set by
+   `body` further down).  Overrides for brand/auth titles below keep the
+   same font so nothing regresses. */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.01em;
 }
 
 body {
@@ -99,6 +111,7 @@ body {
 .brand-text { min-width: 0; }
 
 .brand-title {
+  font-family: var(--font-heading);
   font-weight: 700;
   font-size: 0.95rem;
   letter-spacing: 0.01em;
@@ -560,6 +573,23 @@ body.auth-body {
   opacity: 0.6;
 }
 
+/* Optional background photograph.  Drop a file at
+   /web-app/images/login-bg.jpg and it will show up automatically —
+   if no file is placed there the layer stays invisible and the
+   gradient fallback above remains. */
+.auth-bg-image {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--auth-bg-image, none);
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+}
+
 .auth-shell {
   position: relative;
   z-index: 1;
@@ -599,6 +629,7 @@ body.auth-body {
 }
 
 .auth-brand-name {
+  font-family: var(--font-heading);
   font-weight: 700;
   font-size: 0.95rem;
   color: var(--text);
@@ -612,6 +643,7 @@ body.auth-body {
 }
 
 .auth-title {
+  font-family: var(--font-heading);
   font-size: 1.5rem;
   font-weight: 750;
   color: var(--brand-primary-dark);
