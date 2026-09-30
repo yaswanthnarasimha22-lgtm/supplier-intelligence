@@ -918,42 +918,286 @@ function reportEvent(eventType, metadata = {}, once = false) {
 }
 
 /* ==================================================================
+SEMANTIC AUTOCAPTURE
+==================================================================
+No per-supplier selectors — every interactive element self-describes
+enough (aria-label, textContent, name, data-* attributes, role) to
+derive a stable semantic action name.  For the ~5% of buttons whose
+label is ambiguous ("OK", "Confirm"), the server-side rule dictionary
+(backend/classification/click-rules.js) rewrites the action into a
+canonical name like `booking.create` — see docs/BACKEND_HANDOFF.md.
+
+PII rules:
+- Password fields and any input the credential shield marked
+  data-sil-masked are NEVER captured (no field name, no value).
+- Free-text inputs (text/email/tel/textarea) fire a "changed" event
+  with the field name but WITHOUT the value.
+- Selects, dates, checkboxes, radios capture the chosen value because
+  it comes from a bounded UI, not the agent typing PII.
+================================================================== */
+
+function autoNormalizeLabel(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_.-]/g, "")
+    .slice(0, 60);
+}
+
+function autoDisplayLabel(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+}
+
+/* Best human label for an element, in priority order. */
+function autoBestElementText(el) {
+  if (!el) return "";
+  const ds = el.dataset || {};
+  const raw =
+    ds.analyticsLabel ||
+    ds.testid ||
+    el.getAttribute("aria-label") ||
+    el.getAttribute("title") ||
+    (el.textContent || "").trim() ||
+    el.value ||
+    el.getAttribute("placeholder") ||
+    el.getAttribute("alt") ||
+    el.getAttribute("name") ||
+    el.id ||
+    "";
+  return raw;
+}
+
+/* Field label for form inputs: use associated <label>, aria-label,
+   name, placeholder, id — in that order. */
+function autoFieldLabel(el) {
+  if (!el) return "";
+  if (el.labels && el.labels.length) {
+    return (el.labels[0].textContent || "").trim();
+  }
+  return (
+    el.getAttribute("aria-label") ||
+    el.getAttribute("name") ||
+    el.getAttribute("placeholder") ||
+    el.id ||
+    ""
+  );
+}
+
+/* Nearest containing form's identifier — helps distinguish
+   "search form" clicks from "booking form" clicks on the same
+   supplier page. */
+function autoNearestFormName(el) {
+  const form = el?.closest?.("form");
+  if (!form) return null;
+  return autoNormalizeLabel(
+    form.getAttribute("name") ||
+    form.getAttribute("aria-label") ||
+    form.getAttribute("id") ||
+    ""
+  ) || null;
+}
+
+/* Element role: button, link, submit, select, checkbox, date, etc. */
+function autoElementRole(el) {
+  const explicit = el.getAttribute?.("role");
+  if (explicit) return explicit.toLowerCase();
+  const tag = (el.tagName || "").toLowerCase();
+  if (tag === "a") return "link";
+  if (tag === "button") return "button";
+  if (tag === "select") return "select";
+  if (tag === "textarea") return "textarea";
+  if (tag === "input") {
+    const type = (el.type || "text").toLowerCase();
+    return type;
+  }
+  return tag || "unknown";
+}
+
+function autoIsSensitiveInput(el) {
+  if (!el) return false;
+  if (el.type === "password") return true;
+  if (el.hasAttribute?.("data-sil-masked")) return true;
+  if (el.getAttribute?.("autocomplete") === "cc-number") return true;
+  return false;
+}
+
+/* Per-field debounce for change events so a date picker firing 3
+   times per keystroke does not spam the event log. */
+const autoChangeTimers = new Map();
+function autoDebouncedReport(key, ms, fn) {
+  const prev = autoChangeTimers.get(key);
+  if (prev) clearTimeout(prev);
+  autoChangeTimers.set(
+    key,
+    setTimeout(() => {
+      autoChangeTimers.delete(key);
+      try { fn(); } catch { /* ignore reporter failure */ }
+    }, ms)
+  );
+}
+
+/* ==================================================================
 EVENT LISTENERS
 ================================================================== */
 reportEvent("page.loaded", {}, true);
-document.addEventListener(
-  "submit",
-  (event) => {
-    if (event.target.matches("form")) {
-      reportEvent("login.submitted");
-    }
-  },
-  true
-);
+
 document.addEventListener(
   "click",
   (event) => {
     const target = event.target.closest(
-      "button, a, [role='button'], input[type='submit'], input[type='button']"
+      "button, a, [role='button'], [role='tab'], [role='menuitem'], input[type='submit'], input[type='button'], input[type='checkbox'], input[type='radio'], summary"
     );
     if (!target) return;
-    reportEvent(
-      "interaction.click",
-      {
-        initiatedBy: event.isTrusted ? "user" : "script",
-        element: target.tagName.toLowerCase(),
-        elementId: target.id || null,
-        elementName: target.getAttribute("name"),
-        label: (
-          target.getAttribute("aria-label") ||
-          target.textContent ||
-          target.value ||
-          ""
-        )
-          .trim()
-          .slice(0, 100)
-      }
-    );
+
+    const rawLabel = autoBestElementText(target);
+    const label = autoNormalizeLabel(rawLabel);
+    const display = autoDisplayLabel(rawLabel);
+    const role = autoElementRole(target);
+    const formName = autoNearestFormName(target);
+
+    // Derive an action name that reads well as a keyword in Elastic.
+    // Examples:
+    //   click:book_now
+    //   click:search
+    //   click:cancel_booking
+    //   link:view_details
+    //   submit:booking_form
+    //   tab:my_bookings
+    const verb =
+      role === "link" ? "link"
+      : role === "submit" ? "submit"
+      : role === "tab" ? "tab"
+      : role === "checkbox" || role === "radio" ? role
+      : "click";
+    const action = label ? `${verb}:${label}` : `${verb}:${role}`;
+
+    reportEvent("interaction.click", {
+      action,
+      label: display,
+      role,
+      formName,
+      initiatedBy: event.isTrusted ? "user" : "script",
+      element: (target.tagName || "").toLowerCase(),
+      elementId: target.id || null,
+      elementName: target.getAttribute("name") || null,
+      href: target.tagName === "A" ? target.getAttribute("href") : null
+    });
+  },
+  true
+);
+
+/* -- change: select, date, checkbox, radio, and PII-safe input --- */
+document.addEventListener(
+  "change",
+  (event) => {
+    const el = event.target;
+    if (!el || !el.tagName) return;
+    if (autoIsSensitiveInput(el)) return;
+
+    const fieldLabel = autoFieldLabel(el);
+    const field = autoNormalizeLabel(fieldLabel);
+    const key = `${el.id || el.name || field || "field"}`;
+
+    // <select> — capture the visible option text (safe: bounded UI)
+    if (el.tagName === "SELECT") {
+      const opt = el.options?.[el.selectedIndex];
+      const chosen = autoDisplayLabel(opt?.textContent);
+      autoDebouncedReport(key, 250, () =>
+        reportEvent("interaction.select", {
+          action: `select:${field || "unknown"}`,
+          field: fieldLabel || null,
+          value: chosen || null,
+          role: "select"
+        })
+      );
+      return;
+    }
+
+    // <input type="date|datetime-local|month|week|time"> — ISO value is safe
+    if (el.tagName === "INPUT" && /^(date|datetime-local|month|week|time)$/i.test(el.type)) {
+      autoDebouncedReport(key, 500, () =>
+        reportEvent("interaction.date_selected", {
+          action: `date:${field || el.type}`,
+          field: fieldLabel || null,
+          value: el.value || null,
+          role: el.type
+        })
+      );
+      return;
+    }
+
+    // <input type="checkbox|radio"> — capture toggle state
+    if (el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio")) {
+      autoDebouncedReport(key, 100, () =>
+        reportEvent("interaction.toggle", {
+          action: `${el.type}:${field || "unknown"}:${el.checked ? "on" : "off"}`,
+          field: fieldLabel || null,
+          checked: el.checked,
+          role: el.type,
+          value: el.value || null
+        })
+      );
+      return;
+    }
+
+    // <input type="number|range"> — bounded numeric, safe to capture value
+    if (el.tagName === "INPUT" && (el.type === "number" || el.type === "range")) {
+      autoDebouncedReport(key, 500, () =>
+        reportEvent("interaction.input_changed", {
+          action: `input:${field || el.type}:changed`,
+          field: fieldLabel || null,
+          value: el.value || null,
+          role: el.type
+        })
+      );
+      return;
+    }
+
+    // Any other <input>/<textarea> — record that the field CHANGED
+    // but do NOT record the value (PII protection).
+    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+      autoDebouncedReport(key, 800, () =>
+        reportEvent("interaction.input_changed", {
+          action: `input:${field || el.type || "text"}:changed`,
+          field: fieldLabel || null,
+          role: el.type || "text"
+          // note: no `value` for free-text inputs
+        })
+      );
+    }
+  },
+  true
+);
+
+/* -- form submit: derive a form name (search_form, booking_form, …) - */
+document.addEventListener(
+  "submit",
+  (event) => {
+    const form = event.target;
+    if (!form || !form.matches?.("form")) return;
+
+    // Legacy login.submitted event kept for backwards compat.
+    reportEvent("login.submitted");
+
+    const rawName =
+      form.getAttribute("name") ||
+      form.getAttribute("aria-label") ||
+      form.getAttribute("id") ||
+      form.getAttribute("data-analytics-label") ||
+      "";
+    const formName = autoNormalizeLabel(rawName) || "form";
+
+    reportEvent("interaction.form_submitted", {
+      action: `submit:${formName}`,
+      formName,
+      formAction: form.getAttribute("action") || null,
+      formMethod: (form.getAttribute("method") || "get").toLowerCase()
+    });
   },
   true
 );
