@@ -88,10 +88,17 @@ async function refreshEvents() {
       const typeClass = getEventTypeClass(event.eventType);
       const time = formatTime(event.occurredAt);
 
+      // Prefer the human-readable semantic label when we have one:
+      //   canonicalAction ("booking.create")   > best
+      //   action          ("click:book_now")   > good
+      //   eventType       ("interaction.click") > fallback
+      const primary = event.canonicalAction || event.action || event.eventType;
+      const label   = event.metadata?.label ? ` — ${event.metadata.label}` : "";
+
       row.innerHTML = `
         <span>
-          <span class="event-type ${typeClass}">${event.eventType}</span>
-          <span class="event-supplier">${event.supplier}</span>
+          <span class="event-type ${typeClass}">${primary}</span>
+          <span class="event-supplier">${event.supplier}${label}</span>
         </span>
         <span class="event-meta">${time}</span>
       `;

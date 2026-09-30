@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile, appendFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { classifyEvent } from "../classification/click-rules.js";
 
 // ---------------------------------------------------------------------------
 // Supplier registry
@@ -303,17 +304,33 @@ export async function appendSessionEvent(event, authorization) {
   // the session record and are joined at read time (or hydrated at Elastic
   // ingest).  We strip any client-supplied identity fields here to make
   // sure a compromised extension cannot forge them.
+  //
+  // The extension already computes a semantic `action` (e.g. "click:book_now",
+  // "date:checkin_date", "submit:search_form").  We lift it out of metadata
+  // to a first-class column and run the server-side rule dictionary to
+  // produce a canonical action ("booking.create") when one matches.
+  const meta = event.metadata || {};
+  const action = event.action || meta.action || null;
+  const canonicalAction = classifyEvent({
+    action,
+    supplier: record.supplier,
+    role: meta.role,
+    field: meta.field
+  });
+
   const slimEvent = {
     eventId:    event.eventId,
     sessionId:  event.sessionId,
     supplier:   record.supplier,
     eventType:  event.eventType,
+    action,             // auto-derived label from the extension
+    canonicalAction,    // rule-matched canonical, or null
     occurredAt: event.occurredAt,
     receivedAt: event.receivedAt,
     url:        event.url || null,
     pageTitle:  event.pageTitle || null,
     tabId:      event.tabId || null,
-    metadata:   event.metadata || null
+    metadata:   meta
   };
 
   record.events.push(slimEvent);
