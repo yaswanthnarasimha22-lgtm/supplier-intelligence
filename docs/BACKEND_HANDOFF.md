@@ -319,22 +319,20 @@ Under `backend/session-data/`:
 
 ```
 sessions/<sessionId>.json          canonical session record (updated in place)
-agents/<username>.jsonl            append-only: one row per session that agent started
-agents/<username>.events.jsonl     append-only: one row per event that agent fired
-events/<YYYY-MM-DD>.jsonl          append-only: every event, all agents, that day
-by-supplier/<supplier>/<YYYY-MM-DD>.jsonl   append-only: same, partitioned by supplier
 ```
 
-Every `.jsonl` line matches the DB row shape one-for-one, so the migration
-is literally:
+Each file contains the session metadata (agent identity once, supplier
+details once) plus its own `events[]` array in insertion order.  To
+migrate into a database, iterate over the files and INSERT one row per
+session into `supplier_sessions` and one row per `events[]` entry into
+`supplier_events`:
 
 ```bash
-find backend/session-data/events -name '*.jsonl' -print0 |
-  xargs -0 cat |
-  psql -c "COPY supplier_events (data) FROM STDIN"
+for f in backend/session-data/sessions/*.json; do
+  jq '{id: .sessionId, agent: .agent, supplier, startedAt: .createdAt, endedAt}' "$f"
+  jq -c '.events[]' "$f"
+done
 ```
-
-(or `aws dynamodb batch-write-item`, etc.).
 
 ---
 

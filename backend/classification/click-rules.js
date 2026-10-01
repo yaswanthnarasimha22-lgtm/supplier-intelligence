@@ -3,26 +3,23 @@
  * -------------------------------------------------------------------
  * Server-side rewrite table.  The extension already computes a
  * semantic `action` for every event (e.g. "click:book_now",
- * "date:checkin_date", "submit:search_form").  For the small number
- * of clicks that matter to the business (booking creation, booking
- * cancellation, search submission, etc.) we map the noisy raw label
- * onto a stable canonical action so dashboards can filter on
+ * "date:checkin_date", "submit:search_form").  For the clicks that
+ * matter to the business we map the noisy raw label onto a stable
+ * canonical action so dashboards can filter on
  * `canonicalAction: "booking.create"` regardless of whether the
- * supplier's button says "Book", "Book Now", "Reserve" or "Reservar".
+ * supplier's button says "Book", "Book Now", "Reserve", "Reservar"
+ * or "Buscar".
  *
- * A rule fires when ALL predicates in its `when` object match.  Rules
- * are ordered most-specific → most-generic; first match wins.
+ * Rules are ordered most-specific → most-generic; first match wins.
  * Adding a new mapping requires no code change beyond editing this
  * file (and a restart).
+ *
+ * Each predicate is tested as a case-insensitive substring OR as a
+ * regex — so the rules below cover variants ("book", "booknow",
+ * "book_now", "reserve", "reservar") in both EN and ES without any
+ * strict anchors.
  */
 
-/**
- * Test one rule predicate against the event.
- * A predicate value can be:
- *   - a RegExp   — matched with .test() against the corresponding string
- *   - a string   — case-insensitive substring match
- *   - an array   — any-of match (strings or RegExps)
- */
 function predicateMatches(predicate, value) {
   if (predicate == null) return true;
   if (value == null) return false;
@@ -33,36 +30,94 @@ function predicateMatches(predicate, value) {
   return Array.isArray(predicate) ? predicate.some(check) : check(predicate);
 }
 
-const RULES = [
-  // ---- Booking lifecycle ------------------------------------------
-  { when: { action: /^click:.*(cancel_booking|cancel_reservation)/i },
-    canonical: "booking.cancel" },
-  { when: { action: /^click:.*(confirm_booking|confirm_reservation)/i },
-    canonical: "booking.confirm" },
-  { when: { action: /^click:(book|book_now|reserve|reservar|booknow)$/i },
-    canonical: "booking.create" },
-  { when: { action: /^click:.*view_booking/i },  canonical: "booking.view"    },
-  { when: { action: /^click:.*modify_booking/i }, canonical: "booking.modify" },
+// Shorthand helper: any-of substring match on `action`.
+const act = (...terms) => ({ action: terms });
 
-  // ---- Search -----------------------------------------------------
-  { when: { action: /^submit:.*search/i },            canonical: "search.submit" },
-  { when: { action: /^click:(search|find|find_now)$/i }, canonical: "search.submit" },
-  { when: { action: /^date:(checkin|check_in|arrival)/i },   canonical: "search.checkin_selected" },
-  { when: { action: /^date:(checkout|check_out|departure)/i }, canonical: "search.checkout_selected" },
-  { when: { action: /^select:.*(destination|country|city|region)/i }, canonical: "search.destination_selected" },
-  { when: { action: /^select:.*(guests|adults|rooms|occupancy)/i }, canonical: "search.occupancy_selected" },
+const RULES = [
+  // ---- Booking lifecycle (checked first — most specific wins) -----
+  { when: act("cancel_booking", "cancel_reservation", "cancelar_reserva", "cancel_reserva"),
+    canonical: "booking.cancel" },
+
+  { when: act("confirm_booking", "confirm_reservation", "confirmar_reserva", "confirm_booknow"),
+    canonical: "booking.confirm" },
+
+  { when: act("modify_booking", "modificar_reserva", "edit_booking", "change_booking"),
+    canonical: "booking.modify" },
+
+  { when: act("view_booking", "view_reservation", "ver_reserva", "booking_details"),
+    canonical: "booking.view" },
+
+  // "book"/"reserve"/"reservar"/"book_now" — the mainline create.
+  // Scoped to click: or link: verbs so a "booking_details" link does
+  // not fire this one before the view rule above gets its turn.
+  { when: { action: /^(click|link|submit):[^:]*(book_now|booknow|book$|reservar|reserve$|reservenow|reserve_now|hacer_reserva)/i },
+    canonical: "booking.create" },
+
+  // ---- Search ------------------------------------------------------
+  { when: { action: /^submit:[^:]*search/i },
+    canonical: "search.submit" },
+
+  { when: { action: /^(click|link|submit):[^:]*(search|buscar|find|find_now|go$|ir$)/i },
+    canonical: "search.submit" },
+
+  { when: act("checkin", "check_in", "arrival", "entrada", "llegada", "fecha_entrada"),
+    canonical: "search.checkin_selected" },
+
+  { when: act("checkout", "check_out", "departure", "salida", "fecha_salida"),
+    canonical: "search.checkout_selected" },
+
+  { when: act("destination", "destino", "country", "pais", "city", "ciudad", "region"),
+    canonical: "search.destination_selected" },
+
+  { when: act("guests", "adults", "children", "rooms", "occupancy", "habitaciones", "huespedes", "adultos", "niños"),
+    canonical: "search.occupancy_selected" },
 
   // ---- Auth -------------------------------------------------------
-  { when: { action: /^click:(sign_out|signout|log_out|logout)$/i }, canonical: "auth.signout" },
-  { when: { action: /^submit:.*login/i }, canonical: "auth.signin" },
+  { when: { action: /^(click|link):[^:]*(sign_out|signout|log_out|logout|cerrar_sesion|salir)/i },
+    canonical: "auth.signout" },
 
-  // ---- Nav / cart / exports --------------------------------------
-  { when: { action: /^click:next$/i },                canonical: "nav.next" },
-  { when: { action: /^click:(back|previous|prev)$/i }, canonical: "nav.back" },
-  { when: { action: /^click:.*(download|invoice|voucher|export)/i }, canonical: "export.download" },
-  { when: { action: /^click:print/i },                canonical: "export.print" },
-  { when: { action: /^click:add_to_cart/i },          canonical: "cart.add" },
-  { when: { action: /^click:(remove|delete)$/i },     canonical: "cart.remove" }
+  { when: { action: /^(click|link|submit):[^:]*(sign_in|signin|log_in|login|iniciar_sesion|entrar|acceder)/i },
+    canonical: "auth.signin" },
+
+  // ---- Payment / checkout -----------------------------------------
+  { when: act("pay_now", "pay", "pagar", "checkout", "finalizar_compra"),
+    canonical: "payment.initiate" },
+
+  // ---- Exports / documents ----------------------------------------
+  { when: act("download", "descargar", "invoice", "factura", "voucher", "export", "pdf"),
+    canonical: "export.download" },
+
+  { when: act("print", "imprimir"),
+    canonical: "export.print" },
+
+  // ---- Cart --------------------------------------------------------
+  { when: act("add_to_cart", "add_to_basket", "anadir", "añadir"),
+    canonical: "cart.add" },
+
+  { when: { action: /^click:[^:]*(remove|delete|eliminar|borrar)/i },
+    canonical: "cart.remove" },
+
+  // ---- Navigation --------------------------------------------------
+  { when: { action: /^(click|link):[^:]*(next$|siguiente$|continue$|continuar$|proceed$)/i },
+    canonical: "nav.next" },
+
+  { when: { action: /^(click|link):[^:]*(back$|previous$|prev$|atras$|anterior$|volver$)/i },
+    canonical: "nav.back" },
+
+  { when: { action: /^(click|link):[^:]*(home$|inicio$|dashboard$|panel$)/i },
+    canonical: "nav.home" },
+
+  // ---- Filters -----------------------------------------------------
+  { when: { action: /^(click|select):[^:]*(filter|filtro|sort|ordenar)/i },
+    canonical: "search.filter_changed" },
+
+  // ---- Lifecycle shortcuts (so canonicalAction is never null for
+  //      these common framework events) --------------------------------
+  { when: { action: /^session\./ },     canonical: "session.lifecycle" },
+  { when: { action: /^page\./ },        canonical: "page.lifecycle" },
+  { when: { action: /^login\./ },       canonical: "login.lifecycle" },
+  { when: { action: /^shield\./ },      canonical: "shield.lifecycle" },
+  { when: { action: /^navigation\./ },  canonical: "nav.lifecycle" }
 ];
 
 /**

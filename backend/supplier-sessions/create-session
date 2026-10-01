@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile, appendFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { classifyEvent } from "../classification/click-rules.js";
 
@@ -82,93 +82,26 @@ function getCredentialEnvVars(supplierKey) {
 }
 
 // ---------------------------------------------------------------------------
-// Session store — in-memory index + file-backed record + per-user / per-day
-// append logs.  The JSONL files mirror the future database rows exactly, so
-// the migration path is `cat *.jsonl | insert`.  See docs/BACKEND_HANDOFF.md.
+// Session store — in-memory index + one JSON file per session.
+// Everything (session metadata + its event stream) lives in
+// backend/session-data/sessions/<sessionId>.json.
 // ---------------------------------------------------------------------------
 
 const sessionsById = new Map();
 const sessionRecordsById = new Map();
 
-const sessionDataDirectory = fileURLToPath(new URL("../session-data/", import.meta.url));
-const sessionsDirectory    = fileURLToPath(new URL("../session-data/sessions/", import.meta.url));
-const agentsDirectory      = fileURLToPath(new URL("../session-data/agents/",   import.meta.url));
-const eventsDirectory      = fileURLToPath(new URL("../session-data/events/",   import.meta.url));
-const bySupplierDirectory  = fileURLToPath(new URL("../session-data/by-supplier/", import.meta.url));
+const sessionsDirectory = fileURLToPath(new URL("../session-data/sessions/", import.meta.url));
 
 function sessionFilePath(sessionId) {
   return `${sessionsDirectory}${sessionId}.json`;
 }
 
-function agentIndexPath(username) {
-  const safe = String(username || "unknown").replace(/[^a-zA-Z0-9._-]/g, "_");
-  return `${agentsDirectory}${safe}.jsonl`;
-}
-
-function dailyEventLogPath(occurredAt) {
-  const day = new Date(occurredAt || Date.now()).toISOString().slice(0, 10); // YYYY-MM-DD
-  return `${eventsDirectory}${day}.jsonl`;
-}
-
-function supplierDailyLogPath(supplier, occurredAt) {
-  const day = new Date(occurredAt || Date.now()).toISOString().slice(0, 10);
-  const safeSupplier = String(supplier || "unknown").replace(/[^a-z0-9_-]/gi, "_");
-  return `${bySupplierDirectory}${safeSupplier}/${day}.jsonl`;
-}
-
-async function ensureDirectories() {
-  await Promise.all([
-    mkdir(sessionsDirectory,   { recursive: true }),
-    mkdir(agentsDirectory,     { recursive: true }),
-    mkdir(eventsDirectory,     { recursive: true }),
-    mkdir(bySupplierDirectory, { recursive: true })
-  ]);
-}
-
 async function saveSessionRecord(record) {
-  await ensureDirectories();
+  await mkdir(sessionsDirectory, { recursive: true });
   await writeFile(
     sessionFilePath(record.sessionId),
     `${JSON.stringify(record, null, 2)}\n`
   );
-}
-
-async function appendAgentSessionIndex(record) {
-  const username = record.agent?.username || record.userId || "unknown";
-  await ensureDirectories();
-  // One row per session-start, matches the future `supplier_sessions` row.
-  const row = {
-    sessionId: record.sessionId,
-    userId: username,
-    userSub: record.agent?.sub || null,
-    userEmail: record.agent?.email || null,
-    authProvider: record.agent?.provider || null,
-    supplier: record.supplier,
-    supplierLabel: record.supplierLabel,
-    startUrl: record.startUrl,
-    startedAt: record.createdAt,
-    client: record.client || null
-  };
-  await appendFile(agentIndexPath(username), `${JSON.stringify(row)}\n`);
-}
-
-async function appendEventLogs(event, username) {
-  await ensureDirectories();
-  const line = `${JSON.stringify(event)}\n`;
-  const supplierDir = supplierDailyLogPath(event.supplier, event.occurredAt);
-  await mkdir(supplierDir.slice(0, supplierDir.lastIndexOf("/")), { recursive: true });
-  const writes = [
-    appendFile(dailyEventLogPath(event.occurredAt), line),
-    appendFile(supplierDir, line)
-  ];
-  // Per-agent event stream: since the event object itself no longer
-  // carries the agent, the username is passed in explicitly by the
-  // caller (from the session record).  The filename encodes the agent so
-  // the file is still trivially greppable.
-  if (username) {
-    writes.push(appendFile(agentIndexPath(`${username}.events`), line));
-  }
-  await Promise.all(writes);
 }
 
 // ---------------------------------------------------------------------------
@@ -240,9 +173,6 @@ export async function createSession(payload) {
 
   sessionRecordsById.set(session.sessionId, record);
   await saveSessionRecord(record);
-  await appendAgentSessionIndex(record).catch((err) =>
-    console.warn("[SupplierTracker] agent index append failed:", err?.message)
-  );
 
   // The response body reflects what the extension needs; agent is included
   // so downstream code can carry it verbatim without re-reading auth state.
@@ -310,7 +240,11 @@ export async function appendSessionEvent(event, authorization) {
   // to a first-class column and run the server-side rule dictionary to
   // produce a canonical action ("booking.create") when one matches.
   const meta = event.metadata || {};
-  const action = event.action || meta.action || null;
+  // Prefer the semantic action the extension computed (e.g. "click:book_now");
+  // fall back to the eventType itself (e.g. "page.loaded", "login.submitted")
+  // so every event in the file carries a human-readable `action` string —
+  // never null, never missing.
+  const action = event.action || meta.action || event.eventType || "unknown";
   const canonicalAction = classifyEvent({
     action,
     supplier: record.supplier,
@@ -340,9 +274,6 @@ export async function appendSessionEvent(event, authorization) {
   }
 
   await saveSessionRecord(record);
-  await appendEventLogs(slimEvent, record.agent?.username).catch((err) =>
-    console.warn("[SupplierTracker] event log append failed:", err?.message)
-  );
 
   // Return the slim event so the caller (ingest-event) can echo it back
   // to the UI event log; the launcher looks up agent info by sessionId
