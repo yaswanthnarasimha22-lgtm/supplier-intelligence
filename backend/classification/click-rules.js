@@ -107,8 +107,25 @@ const RULES = [
   { when: { action: /^(click|link):[^:]*(home$|inicio$|dashboard$|panel$)/i },
     canonical: "nav.home" },
 
+  { when: { action: /^(click|link):[^:]*(my_bookings|my_reservations|mis_reservas|bookings$|reservations$)/i },
+    canonical: "nav.bookings" },
+
+  // ---- Supplier UI granular selections (hotel room, destination
+  //      chip, etc.) — common on search-results pages ----------------
+  { when: { action: /^(click|radio):[^:]*(room|habitacion|habitación|suite|standard|deluxe|double|single|twin)/i },
+    canonical: "booking.room_selected" },
+
+  { when: { action: /^click:[^:]*(hotel|resort|property|propiedad)/i },
+    canonical: "booking.property_selected" },
+
   // ---- Filters -----------------------------------------------------
   { when: { action: /^(click|select):[^:]*(filter|filtro|sort|ordenar)/i },
+    canonical: "search.filter_changed" },
+
+  // When the <select> had no field label, we fall back to the chosen
+  // value — these are the common sort options encountered on supplier
+  // search-result pages.
+  { when: { action: /^select:[^:]*(price_high_to_low|price_low_to_high|most_popular|highest_rated|star_rating|recommended)/i },
     canonical: "search.filter_changed" },
 
   // ---- Lifecycle shortcuts (so canonicalAction is never null for

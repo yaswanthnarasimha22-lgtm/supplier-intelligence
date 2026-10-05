@@ -953,10 +953,29 @@ function autoDisplayLabel(text) {
     .slice(0, 100);
 }
 
-/* Best human label for an element, in priority order. */
+/* Best human label for an element, in priority order.
+ *
+ * For radio/checkbox inputs we prefer the associated <label>, because
+ * the input's own `value` is often a server-side identifier (a hash,
+ * uuid, or room-code).  The toggle handler already finds the right
+ * label via `el.labels` — we do the same for the click handler so a
+ * click on a room-selector radio reports e.g.
+ *   "radio:deluxe_room_with_two_twin_beds"
+ * instead of
+ *   "radio:4257452d5444325753..." .
+ */
 function autoBestElementText(el) {
   if (!el) return "";
   const ds = el.dataset || {};
+
+  if (el.tagName === "INPUT" && (el.type === "radio" || el.type === "checkbox")) {
+    const assoc =
+      (el.labels && el.labels[0] && el.labels[0].textContent) ||
+      (el.closest && el.closest("label") && el.closest("label").textContent) ||
+      el.getAttribute("aria-label");
+    if (assoc && assoc.trim()) return assoc;
+  }
+
   const raw =
     ds.analyticsLabel ||
     ds.testid ||
@@ -978,6 +997,15 @@ function autoFieldLabel(el) {
   if (!el) return "";
   if (el.labels && el.labels.length) {
     return (el.labels[0].textContent || "").trim();
+  }
+  // Fall back to a wrapping <label> element — some suppliers wrap the
+  // input in a <label> without using the for= attribute, so el.labels
+  // is empty but a parent label still carries the human text.
+  const wrapping = el.closest && el.closest("label");
+  if (wrapping) {
+    // Clone the label and strip the input itself so we only read the
+    // human prose beside/around the field.
+    return (wrapping.textContent || "").trim();
   }
   return (
     el.getAttribute("aria-label") ||
@@ -1103,13 +1131,20 @@ document.addEventListener(
     const field = autoNormalizeLabel(fieldLabel);
     const key = `${el.id || el.name || field || "field"}`;
 
-    // <select> — capture the visible option text (safe: bounded UI)
+    // <select> — capture the visible option text (safe: bounded UI).
+    // If the field itself has no identifiable label (no <label>, name,
+    // aria-label, placeholder or id) we compose the action from the
+    // chosen value instead so the event stays queryable — e.g.
+    //   action: "select:price_high_to_low"
+    // rather than the useless "select:unknown".
     if (el.tagName === "SELECT") {
       const opt = el.options?.[el.selectedIndex];
       const chosen = autoDisplayLabel(opt?.textContent);
+      const chosenKey = autoNormalizeLabel(opt?.textContent);
+      const actionName = field || chosenKey || "unknown";
       autoDebouncedReport(key, 250, () =>
         reportEvent("interaction.select", {
-          action: `select:${field || "unknown"}`,
+          action: `select:${actionName}`,
           field: fieldLabel || null,
           value: chosen || null,
           role: "select"
