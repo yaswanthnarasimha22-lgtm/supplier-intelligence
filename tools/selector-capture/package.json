@@ -1,0 +1,15 @@
+{
+  "name": "sil-selector-capture",
+  "version": "0.1.0",
+  "description": "Standalone capture tool: records stable CSS selectors as an agent clicks through supplier portals, outputs a selector-rules.json ready to drop into the main app.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "capture": "node index.js",
+    "review": "node review.js",
+    "install:browsers": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.47.0"
+  }
+}

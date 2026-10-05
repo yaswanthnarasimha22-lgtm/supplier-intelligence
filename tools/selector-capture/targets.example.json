@@ -1,0 +1,11 @@
+[
+  { "supplier": "hotelbeds",        "url": "https://discover.hotelbeds.com/" },
+  { "supplier": "bedswithease",     "url": "https://www.bedswithease.com/login" },
+  { "supplier": "alturabeds",       "url": "https://www.alturabeds.com/en" },
+  { "supplier": "sunhotels",        "url": "https://www.sunhotels.com/en/" },
+  { "supplier": "suninternational", "url": "https://www.sunegypt.com/" },
+  { "supplier": "suntransfers",     "url": "https://partners.suntransfers.com/" },
+  { "supplier": "stours",           "url": "https://stours-extranet.cyberlogic.cloud/sign-in" },
+  { "supplier": "yalago",           "url": "https://affiliate.yalago.com/" },
+  { "supplier": "w2m",              "url": "https://dmc.w2m.travel/" }
+]
