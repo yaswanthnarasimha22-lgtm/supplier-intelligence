@@ -1054,6 +1054,25 @@ function autoIsSensitiveInput(el) {
   return false;
 }
 
+/* Collect automation-friendly attributes from an element.  These are
+   the keys backend/classification/selector-rules.json matches against
+   on the server, so a supplier like Hotelbeds that stamps data-qa on
+   every button gets 100% deterministic canonicalAction mapping. */
+function autoAttrs(el) {
+  if (!el || !el.getAttribute) return {};
+  return {
+    dataQa:           el.getAttribute("data-qa")           || null,
+    dataTestid:       el.getAttribute("data-testid")       || null,
+    dataTest:         el.getAttribute("data-test")         || null,
+    dataCy:           el.getAttribute("data-cy")           || null,
+    dataAnalyticsId:  el.getAttribute("data-analytics-id") || null,
+    ariaLabel:        el.getAttribute("aria-label")        || null,
+    formControlName:  el.getAttribute("formcontrolname")   || null,
+    placeholder:      el.getAttribute("placeholder")       || null,
+    classAttr:        el.getAttribute("class")             || null
+  };
+}
+
 /* Per-field debounce for change events so a date picker firing 3
    times per keystroke does not spam the event log. */
 const autoChangeTimers = new Map();
@@ -1113,7 +1132,8 @@ document.addEventListener(
       element: (target.tagName || "").toLowerCase(),
       elementId: target.id || null,
       elementName: target.getAttribute("name") || null,
-      href: target.tagName === "A" ? target.getAttribute("href") : null
+      href: target.tagName === "A" ? target.getAttribute("href") : null,
+      ...autoAttrs(target)
     });
   },
   true
@@ -1130,6 +1150,7 @@ document.addEventListener(
     const fieldLabel = autoFieldLabel(el);
     const field = autoNormalizeLabel(fieldLabel);
     const key = `${el.id || el.name || field || "field"}`;
+    const attrs = autoAttrs(el);
 
     // <select> — capture the visible option text (safe: bounded UI).
     // If the field itself has no identifiable label (no <label>, name,
@@ -1147,7 +1168,8 @@ document.addEventListener(
           action: `select:${actionName}`,
           field: fieldLabel || null,
           value: chosen || null,
-          role: "select"
+          role: "select",
+          ...attrs
         })
       );
       return;
@@ -1160,7 +1182,8 @@ document.addEventListener(
           action: `date:${field || el.type}`,
           field: fieldLabel || null,
           value: el.value || null,
-          role: el.type
+          role: el.type,
+          ...attrs
         })
       );
       return;
@@ -1174,7 +1197,8 @@ document.addEventListener(
           field: fieldLabel || null,
           checked: el.checked,
           role: el.type,
-          value: el.value || null
+          value: el.value || null,
+          ...attrs
         })
       );
       return;
@@ -1187,7 +1211,8 @@ document.addEventListener(
           action: `input:${field || el.type}:changed`,
           field: fieldLabel || null,
           value: el.value || null,
-          role: el.type
+          role: el.type,
+          ...attrs
         })
       );
       return;
@@ -1200,7 +1225,8 @@ document.addEventListener(
         reportEvent("interaction.input_changed", {
           action: `input:${field || el.type || "text"}:changed`,
           field: fieldLabel || null,
-          role: el.type || "text"
+          role: el.type || "text",
+          ...attrs
           // note: no `value` for free-text inputs
         })
       );

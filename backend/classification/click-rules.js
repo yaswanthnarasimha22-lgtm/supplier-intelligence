@@ -1,24 +1,109 @@
 /*
  * click-rules.js
  * -------------------------------------------------------------------
- * Server-side rewrite table.  The extension already computes a
- * semantic `action` for every event (e.g. "click:book_now",
- * "date:checkin_date", "submit:search_form").  For the clicks that
- * matter to the business we map the noisy raw label onto a stable
- * canonical action so dashboards can filter on
- * `canonicalAction: "booking.create"` regardless of whether the
- * supplier's button says "Book", "Book Now", "Reserve", "Reservar"
- * or "Buscar".
+ * Server-side event classification pipeline.  Runs in this order
+ * when classifyEvent(event) is called:
  *
- * Rules are ordered most-specific → most-generic; first match wins.
- * Adding a new mapping requires no code change beyond editing this
- * file (and a restart).
+ *   1. selector-rules.json  — supplier-specific, 100% deterministic
+ *      matches on data-qa / data-testid / aria-label / id /
+ *      formcontrolname / label / url.  Hand-curated per supplier.
+ *      First match wins.  Winning here beats everything in step 2.
  *
- * Each predicate is tested as a case-insensitive substring OR as a
- * regex — so the rules below cover variants ("book", "booknow",
- * "book_now", "reserve", "reservar") in both EN and ES without any
- * strict anchors.
+ *   2. RULES (below)        — generic text-based rules keyed on the
+ *      auto-derived `action` string ("click:book_now").  Multilingual.
+ *
+ * The extension already computes a semantic `action` for every event
+ * (e.g. "click:book_now", "date:checkin_date", "submit:search_form");
+ * these two layers rewrite that onto a stable `canonicalAction` so
+ * dashboards can filter without worrying about labels.
  */
+
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// ---------------------------------------------------------------------------
+// Layer 1 — supplier-specific selector rules (loaded at startup)
+// ---------------------------------------------------------------------------
+
+let selectorRulesBySupplier = {};
+try {
+  const raw = JSON.parse(
+    readFileSync(join(__dirname, "selector-rules.json"), "utf8")
+  );
+  for (const [k, v] of Object.entries(raw)) {
+    if (k.startsWith("__")) continue;              // skip __doc__ etc.
+    if (!Array.isArray(v)) continue;
+    // Filter out string-only "section header" entries; keep real rule objects.
+    selectorRulesBySupplier[k] = v.filter(
+      (entry) => entry && typeof entry === "object" && entry.when && entry.canonical
+    );
+  }
+} catch (err) {
+  console.warn(
+    "[click-rules] selector-rules.json unreadable:",
+    err?.message || err
+  );
+}
+
+/**
+ * Match ONE selector-rule's `when` predicate against the event.
+ * All predicate keys below are optional and AND-combined — a rule
+ * fires only when every present key matches.  Missing keys are
+ * ignored (effectively wildcards).  See docs/BACKEND_HANDOFF.md § 4
+ * for the authoritative list.
+ */
+function selectorPredicateMatches(when, event, meta) {
+  if (!when) return false;
+
+  // String comparison helpers.
+  const eq  = (v, want) => v != null && String(v) === String(want);
+  const sub = (v, want) =>
+    v != null && String(v).toLowerCase().includes(String(want).toLowerCase());
+  const rex = (v, pattern) => {
+    try { return v != null && new RegExp(pattern, "i").test(String(v)); }
+    catch { return false; }
+  };
+
+  if (when.urlPattern       && !rex(event.url,              when.urlPattern))      return false;
+  if (when.hostname         && !sub(event.url,              when.hostname))        return false;
+  if (when.pageTitle        && !sub(event.pageTitle,        when.pageTitle))       return false;
+  if (when.action           && !sub(event.action,           when.action))          return false;
+  if (when.eventType        && !eq(event.eventType,         when.eventType))       return false;
+  if (when.dataQa           && !eq(meta.dataQa,             when.dataQa))          return false;
+  if (when.dataTestid       && !eq(meta.dataTestid,         when.dataTestid))      return false;
+  if (when.dataTest         && !eq(meta.dataTest,           when.dataTest))        return false;
+  if (when.dataCy           && !eq(meta.dataCy,             when.dataCy))          return false;
+  if (when.dataAnalyticsId  && !eq(meta.dataAnalyticsId,    when.dataAnalyticsId)) return false;
+  if (when.ariaLabel        && !eq(meta.ariaLabel,          when.ariaLabel))       return false;
+  if (when.elementId        && !eq(meta.elementId,          when.elementId))       return false;
+  if (when.elementName      && !eq(meta.elementName,        when.elementName))     return false;
+  if (when.formControlName  && !eq(meta.formControlName,    when.formControlName)) return false;
+  if (when.placeholder      && !eq(meta.placeholder,        when.placeholder))     return false;
+  if (when.label            && !sub(meta.label,             when.label))           return false;
+  if (when.role             && !eq(meta.role,               when.role))            return false;
+  if (when.href             && !sub(meta.href,              when.href))            return false;
+  if (when.classContains    && !sub(meta.classAttr,         when.classContains))   return false;
+  return true;
+}
+
+function matchSelectorRules(event) {
+  const supplier = event?.supplier;
+  if (!supplier) return null;
+  const rules = selectorRulesBySupplier[supplier];
+  if (!rules?.length) return null;
+  const meta = event.metadata || {};
+  for (const rule of rules) {
+    if (selectorPredicateMatches(rule.when, event, meta)) return rule.canonical;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Layer 2 — generic text-based rules (unchanged behaviour)
+// ---------------------------------------------------------------------------
 
 function predicateMatches(predicate, value) {
   if (predicate == null) return true;
@@ -141,9 +226,20 @@ const RULES = [
  * Return a canonical action name for the event, or null when no rule
  * matches.  Callers should store both `action` (raw, auto-derived)
  * and `canonicalAction` (rule-mapped) so dashboards can pick either.
+ *
+ * Resolution order:
+ *   1. supplier-specific selector-rules.json (hand-curated, deterministic)
+ *   2. generic text-based RULES array below (multilingual, best-effort)
  */
 export function classifyEvent(event) {
-  if (!event || !event.action) return null;
+  if (!event) return null;
+
+  // Layer 1 — selector rules (data-qa, aria-label, formcontrolname, …)
+  const selectorHit = matchSelectorRules(event);
+  if (selectorHit) return selectorHit;
+
+  // Layer 2 — generic text rules keyed on event.action
+  if (!event.action) return null;
   for (const rule of RULES) {
     const w = rule.when || {};
     if (!predicateMatches(w.supplier, event.supplier)) continue;

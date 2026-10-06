@@ -152,6 +152,60 @@ the pipeline — do not require the client to re-send it on each event.
 
 ---
 
+## 3b. Per-supplier selector rules (`backend/classification/selector-rules.json`)
+
+Supplier-specific, 100% deterministic.  Checked **before** the generic
+text rules.  Shape:
+
+```jsonc
+{
+  "hotelbeds": [
+    { "when": { "dataQa": "btn_search_stay_themepark" },
+      "canonical": "search.submit",
+      "notes": "Home — main Search button" }
+  ]
+}
+```
+
+### Supported predicate keys (all optional, AND-combined)
+
+| Key                 | Matcher                     | Source on the event                    |
+|---------------------|-----------------------------|----------------------------------------|
+| `dataQa`            | exact                       | `metadata.dataQa` (data-qa attribute)  |
+| `dataTestid`        | exact                       | `metadata.dataTestid`                  |
+| `dataTest`          | exact                       | `metadata.dataTest`                    |
+| `dataCy`            | exact                       | `metadata.dataCy`                      |
+| `dataAnalyticsId`   | exact                       | `metadata.dataAnalyticsId`             |
+| `ariaLabel`         | exact                       | `metadata.ariaLabel`                   |
+| `elementId`         | exact                       | `metadata.elementId`                   |
+| `elementName`       | exact                       | `metadata.elementName` (name attr)     |
+| `formControlName`   | exact                       | `metadata.formControlName`             |
+| `placeholder`       | exact                       | `metadata.placeholder`                 |
+| `label`             | case-insensitive substring  | `metadata.label`                       |
+| `role`              | exact                       | `metadata.role`                        |
+| `href`              | case-insensitive substring  | `metadata.href`                        |
+| `classContains`     | case-insensitive substring  | `metadata.classAttr`                   |
+| `urlPattern`        | regex (case-insensitive)    | `event.url`                            |
+| `hostname`          | case-insensitive substring  | `event.url`                            |
+| `pageTitle`         | case-insensitive substring  | `event.pageTitle`                      |
+| `action`            | case-insensitive substring  | `event.action`                         |
+| `eventType`         | exact                       | `event.eventType`                      |
+
+A rule fires only when **every** present key matches.  Omit a key to
+leave it unconstrained (effectively a wildcard).  First match wins —
+order rules most-specific → most-generic.
+
+### Adding a new supplier
+
+1. Walk the supplier portal with DevTools open (or use
+   `tools/selector-capture/` to automate the walk).
+2. For every KPI action, pick the most stable attribute to match on
+   (prefer `dataQa` ⇒ `elementId` ⇒ `ariaLabel` ⇒ `label` ⇒ `urlPattern`).
+3. Add an array entry under the supplier key.  Pure-string entries
+   are treated as section headers — use them liberally to keep the
+   file readable.
+4. Restart the main server.  No code change is required.
+
 ## 4. Event vocabulary
 
 The extension emits these event types today. All are prefixed by domain so

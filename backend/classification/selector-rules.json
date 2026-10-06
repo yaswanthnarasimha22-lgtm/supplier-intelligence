@@ -1,0 +1,135 @@
+{
+  "__doc__": [
+    "Supplier-specific selector rules.  One array per supplier; first match",
+    "wins.  Each rule has a `when` predicate and a `canonical` name.  All",
+    "predicate keys are optional AND-combined — a rule fires only when every",
+    "key in `when` matches.  See docs/BACKEND_HANDOFF.md § 4 for the full key",
+    "list.  Keep the comments-as-notes near each rule so future edits know",
+    "which real portal element the rule targets."
+  ],
+
+  "hotelbeds": [
+
+    "═══ Home search box ══════════════════════════════════════════════",
+
+    { "when": { "dataQa": "destinationsControl" },
+      "canonical": "search.destination_selected",
+      "notes": "Home — 'Where are you going?' destination input" },
+
+    { "when": { "formControlName": "init" },
+      "canonical": "search.checkin_selected",
+      "notes": "Home — check-in date (from)" },
+
+    { "when": { "formControlName": "end" },
+      "canonical": "search.checkout_selected",
+      "notes": "Home — check-out date (to)" },
+
+    { "when": { "dataQa": "input_distribution_accommodation" },
+      "canonical": "search.occupancy_selected",
+      "notes": "Home — travellers / rooms distribution" },
+
+    { "when": { "dataQa": "btn_search_stay_themepark" },
+      "canonical": "search.submit",
+      "notes": "Home — main Search button" },
+
+    "═══ Board-type toggles (home advanced filters) ═════════════════",
+
+    { "when": { "label": "Room only" },
+      "canonical": "search.filter_changed",
+      "notes": "Board filter: Room only" },
+    { "when": { "label": "Breakfast" },
+      "canonical": "search.filter_changed",
+      "notes": "Board filter: Breakfast" },
+    { "when": { "label": "Half Board" },
+      "canonical": "search.filter_changed",
+      "notes": "Board filter: Half Board" },
+    { "when": { "label": "Full Board" },
+      "canonical": "search.filter_changed",
+      "notes": "Board filter: Full Board" },
+    { "when": { "label": "All Inclusive" },
+      "canonical": "search.filter_changed",
+      "notes": "Board filter: All Inclusive" },
+
+    "═══ Luxury / cancellation checkboxes ═══════════════════════════",
+
+    { "when": { "label": "Luxury Collection" },
+      "canonical": "search.filter_changed",
+      "notes": "Filter: Luxury Collection checkbox" },
+    { "when": { "label": "Free cancellation" },
+      "canonical": "search.filter_changed",
+      "notes": "Filter: Free cancellation checkbox" },
+
+    "═══ Product tabs (top of search box) ═══════════════════════════",
+
+    { "when": { "dataQa": "HOTEL" },
+      "canonical": "search.product_stays",
+      "notes": "Product tab: Stays" },
+    { "when": { "dataQa": "ACTIVITY" },
+      "canonical": "search.product_experiences",
+      "notes": "Product tab: Experiences" },
+    { "when": { "dataQa": "THEME_PARK" },
+      "canonical": "search.product_themeparks",
+      "notes": "Product tab: Theme parks" },
+    { "when": { "dataQa": "TRANSFER" },
+      "canonical": "search.product_transfers",
+      "notes": "Product tab: Transfers" },
+    { "when": { "dataQa": "CARHIRE" },
+      "canonical": "search.product_carhire",
+      "notes": "Product tab: Car Rental" },
+
+    "═══ Header navigation ═══════════════════════════════════════════",
+
+    { "when": { "dataQa": "main-nav-header-search" },
+      "canonical": "nav.search",
+      "notes": "Top nav — Search" },
+    { "when": { "dataQa": "main-nav-header-bookings" },
+      "canonical": "nav.bookings",
+      "notes": "Top nav — Bookings" },
+    { "when": { "dataQa": "main-nav-header-quotes" },
+      "canonical": "nav.quotes",
+      "notes": "Top nav — Quotes" },
+    { "when": { "dataQa": "main-nav-header-favorites" },
+      "canonical": "nav.favorites",
+      "notes": "Top nav — Favorites" },
+    { "when": { "dataQa": "main-nav-header-insights" },
+      "canonical": "nav.insights",
+      "notes": "Top nav — Insights" },
+    { "when": { "dataQa": "main-nav-header-support" },
+      "canonical": "nav.support",
+      "notes": "Top nav — Support" },
+
+    "═══ Icon buttons (right side of header) ════════════════════════",
+
+    { "when": { "ariaLabel": "Account" },
+      "canonical": "nav.account",
+      "notes": "Top nav — Account icon" },
+    { "when": { "dataQa": "setting-icon-menu" },
+      "canonical": "nav.settings",
+      "notes": "Top nav — Settings icon" },
+    { "when": { "ariaLabel": "Notifications" },
+      "canonical": "nav.notifications",
+      "notes": "Top nav — Notifications icon" },
+    { "when": { "ariaLabel": "Cart" },
+      "canonical": "nav.cart",
+      "notes": "Top nav — Cart icon" },
+
+    "═══ Sign out ═════════════════════════════════════════════════════",
+
+    { "when": { "label": "Log out" },
+      "canonical": "auth.signout",
+      "notes": "Account panel — Log out link" },
+
+    "═══ Bookings search page ═══════════════════════════════════════",
+
+    { "when": {
+        "urlPattern": "/bookings/",
+        "placeholder": "Booking number or Itinerary ID"
+      },
+      "canonical": "booking.search",
+      "notes": "Bookings page — booking number / itinerary lookup input" },
+
+    { "when": { "dataQa": "filters-form-btn" },
+      "canonical": "search.filter_applied",
+      "notes": "Bookings page — Apply filters button" }
+  ]
+}
