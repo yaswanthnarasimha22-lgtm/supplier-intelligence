@@ -446,5 +446,268 @@
     { "when": { "label": "Legal Notice" },
       "canonical": "nav.legal_notice",
       "notes": "Footer — Legal Notice link" }
+  ],
+
+  "stours": [
+
+    "═══ Dashboard — primary actions ═════════════════════════════════",
+
+    { "when": { "urlPattern": "/dashboard", "label": "Add Booking" },
+      "canonical": "booking.add_booking",
+      "notes": "Dashboard — Add Booking CTA" },
+
+    { "when": { "urlPattern": "/dashboard", "label": "Hotels R" },
+      "canonical": "nav.hotels_r",
+      "notes": "Dashboard — Hotels R button" },
+
+    "═══ Quotation / New Booking — search form ═══════════════════════",
+
+    { "when": { "urlPattern": "/quotation", "elementId": "mat-input-0" },
+      "canonical": "search.location_selected",
+      "notes": "New Booking — Pick a location input" },
+
+    { "when": { "urlPattern": "/quotation", "elementId": "mat-input-2" },
+      "canonical": "search.hotel_selected",
+      "notes": "New Booking — Pick a hotel input" },
+
+    { "when": { "urlPattern": "/quotation", "elementId": "mat-date-range-input-0" },
+      "canonical": "search.date_range_selected",
+      "notes": "New Booking — Date range (dd/mm/yyyy)" },
+
+    { "when": { "urlPattern": "/quotation", "elementId": "mat-input-4" },
+      "canonical": "search.clients_selected",
+      "notes": "New Booking — Select Clients input" },
+
+    { "when": { "urlPattern": "/quotation", "label": "Open calendar" },
+      "canonical": "search.calendar_opened",
+      "notes": "New Booking — Open calendar button" },
+
+    { "when": { "urlPattern": "/quotation", "label": "SEARCH" },
+      "canonical": "search.submit",
+      "notes": "New Booking — SEARCH button" },
+
+    "═══ Availability — contract / rooms / year ══════════════════════",
+
+    { "when": { "urlPattern": "/availability", "elementId": "mat-select-0" },
+      "canonical": "availability.contract_selected",
+      "notes": "Availability — Select a contract dropdown" },
+
+    { "when": { "urlPattern": "/availability", "elementId": "mat-select-2" },
+      "canonical": "availability.rooms_selected",
+      "notes": "Availability — Select rooms dropdown" },
+
+    { "when": { "urlPattern": "/availability", "elementId": "mat-select-4" },
+      "canonical": "availability.year_selected",
+      "notes": "Availability — Select year dropdown" },
+
+    "═══ Rates page — buttons and grid column filters ════════════════",
+
+    { "when": { "urlPattern": "/rates", "label": "View Datasheet" },
+      "canonical": "rates.view_datasheet",
+      "notes": "Rates — View Datasheet button (per-row action)" },
+
+    { "when": { "urlPattern": "/rates", "label": "Download" },
+      "canonical": "export.rate_sheet",
+      "notes": "Rates — Download button (per-row action)" },
+
+    { "when": { "urlPattern": "/rates", "label": "Export" },
+      "canonical": "export.rates",
+      "notes": "Rates — Export all button" },
+
+    { "when": { "urlPattern": "/rates", "elementId": "dx-col-19" },
+      "canonical": "rates.filter_hotel_name",
+      "notes": "Rates — Hotel Name column filter" },
+
+    { "when": { "urlPattern": "/rates", "elementId": "dx-col-20" },
+      "canonical": "rates.filter_hotel_rating",
+      "notes": "Rates — Hotel Rating column filter" },
+
+    { "when": { "urlPattern": "/rates", "elementId": "dx-col-21" },
+      "canonical": "rates.filter_region",
+      "notes": "Rates — Region column filter" },
+
+    { "when": { "urlPattern": "/rates", "elementId": "dx-col-22" },
+      "canonical": "rates.filter_city",
+      "notes": "Rates — City column filter" },
+
+    { "when": { "urlPattern": "/rates", "elementId": "dx-col-23" },
+      "canonical": "rates.filter_start_date",
+      "notes": "Rates — Start Date column filter" },
+
+    { "when": { "urlPattern": "/rates", "elementId": "dx-col-24" },
+      "canonical": "rates.filter_end_date",
+      "notes": "Rates — End Date column filter" },
+
+    { "when": { "urlPattern": "/rates", "elementId": "dx-col-25" },
+      "canonical": "rates.filter_booking_start_date",
+      "notes": "Rates — Booking Start Date column filter" },
+
+    { "when": { "urlPattern": "/rates", "elementId": "dx-col-26" },
+      "canonical": "rates.filter_booking_end_date",
+      "notes": "Rates — Booking End Date column filter" },
+
+    { "when": { "urlPattern": "/rates", "elementId": "dx-col-27" },
+      "canonical": "rates.filter_actions",
+      "notes": "Rates — Actions column" },
+
+    "═══ Stop Sales page — Export and grid column filters ════════════",
+
+    { "when": { "urlPattern": "/stopsales", "label": "Export" },
+      "canonical": "export.stopsales",
+      "notes": "Stop Sales — Export button" },
+
+    { "when": { "urlPattern": "/stopsales", "elementId": "dx-col-13" },
+      "canonical": "stopsales.filter_creation_date",
+      "notes": "Stop Sales — Creation Date column filter" },
+
+    { "when": { "urlPattern": "/stopsales", "elementId": "dx-col-14" },
+      "canonical": "stopsales.filter_id",
+      "notes": "Stop Sales — ID column filter" },
+
+    { "when": { "urlPattern": "/stopsales", "elementId": "dx-col-15" },
+      "canonical": "stopsales.filter_hotel_name",
+      "notes": "Stop Sales — Hotel Name column filter" },
+
+    { "when": { "urlPattern": "/stopsales", "elementId": "dx-col-16" },
+      "canonical": "stopsales.filter_room_type",
+      "notes": "Stop Sales — Room Type column filter" },
+
+    { "when": { "urlPattern": "/stopsales", "elementId": "dx-col-17" },
+      "canonical": "stopsales.filter_from_date",
+      "notes": "Stop Sales — From Date column filter" },
+
+    { "when": { "urlPattern": "/stopsales", "elementId": "dx-col-18" },
+      "canonical": "stopsales.filter_to_date",
+      "notes": "Stop Sales — To Date column filter" },
+
+    "═══ Invoices page — Export and grid column filters ══════════════",
+
+    { "when": { "urlPattern": "/invoices", "label": "Export" },
+      "canonical": "export.invoices",
+      "notes": "Invoices — Export button" },
+
+    { "when": { "urlPattern": "/invoices", "elementId": "dx-col-21" },
+      "canonical": "invoices.filter_issue_date",
+      "notes": "Invoices — Issue Date column filter" },
+
+    { "when": { "urlPattern": "/invoices", "elementId": "dx-col-22" },
+      "canonical": "invoices.filter_type",
+      "notes": "Invoices — Type column filter" },
+
+    { "when": { "urlPattern": "/invoices", "elementId": "dx-col-23" },
+      "canonical": "invoices.filter_status",
+      "notes": "Invoices — Status column filter" },
+
+    { "when": { "urlPattern": "/invoices", "elementId": "dx-col-24" },
+      "canonical": "invoices.filter_file_number",
+      "notes": "Invoices — File Number column filter" },
+
+    { "when": { "urlPattern": "/invoices", "elementId": "dx-col-25" },
+      "canonical": "invoices.filter_reference",
+      "notes": "Invoices — Reference column filter" },
+
+    { "when": { "urlPattern": "/invoices", "elementId": "dx-col-26" },
+      "canonical": "invoices.filter_series",
+      "notes": "Invoices — Series column filter" },
+
+    { "when": { "urlPattern": "/invoices", "elementId": "dx-col-27" },
+      "canonical": "invoices.filter_number",
+      "notes": "Invoices — Number column filter" },
+
+    { "when": { "urlPattern": "/invoices", "elementId": "dx-col-28" },
+      "canonical": "invoices.filter_amount",
+      "notes": "Invoices — Amount column filter" },
+
+    { "when": { "urlPattern": "/invoices", "elementId": "dx-col-29" },
+      "canonical": "invoices.filter_vat_amount",
+      "notes": "Invoices — VAT Amount column filter" },
+
+    { "when": { "urlPattern": "/invoices", "elementId": "dx-col-30" },
+      "canonical": "invoices.filter_actions",
+      "notes": "Invoices — Actions column" },
+
+    "═══ Reservations page — buttons and grid column filters ═════════",
+
+    { "when": { "urlPattern": "/reservations", "label": "Add new booking" },
+      "canonical": "booking.create_new",
+      "notes": "Reservations — Add new booking button (must precede sidebar 'New Booking')" },
+
+    { "when": { "urlPattern": "/reservations", "label": "Export" },
+      "canonical": "export.reservations",
+      "notes": "Reservations — Export button" },
+
+    { "when": { "urlPattern": "/reservations", "label": "View" },
+      "canonical": "booking.view",
+      "notes": "Reservations — View button (per-row action)" },
+
+    { "when": { "urlPattern": "/reservations", "elementId": "dx-col-78" },
+      "canonical": "reservations.filter_booking_date",
+      "notes": "Reservations — Booking Date column filter" },
+
+    { "when": { "urlPattern": "/reservations", "elementId": "dx-col-79" },
+      "canonical": "reservations.filter_status",
+      "notes": "Reservations — Reservation Status column filter" },
+
+    { "when": { "urlPattern": "/reservations", "elementId": "dx-col-80" },
+      "canonical": "reservations.filter_file_number",
+      "notes": "Reservations — File Number column filter" },
+
+    { "when": { "urlPattern": "/reservations", "elementId": "dx-col-81" },
+      "canonical": "reservations.filter_reference",
+      "notes": "Reservations — Reference column filter" },
+
+    { "when": { "urlPattern": "/reservations", "elementId": "dx-col-82" },
+      "canonical": "reservations.filter_lead_client",
+      "notes": "Reservations — Lead Client column filter" },
+
+    { "when": { "urlPattern": "/reservations", "elementId": "dx-col-83" },
+      "canonical": "reservations.filter_services",
+      "notes": "Reservations — Services column filter" },
+
+    { "when": { "urlPattern": "/reservations", "elementId": "dx-col-84" },
+      "canonical": "reservations.filter_arrival_date",
+      "notes": "Reservations — Arrival Date column filter" },
+
+    { "when": { "urlPattern": "/reservations", "elementId": "dx-col-85" },
+      "canonical": "reservations.filter_departure_date",
+      "notes": "Reservations — Departure Date column filter" },
+
+    { "when": { "urlPattern": "/reservations", "elementId": "dx-col-86" },
+      "canonical": "reservations.filter_pax",
+      "notes": "Reservations — Pax column filter" },
+
+    { "when": { "urlPattern": "/reservations", "elementId": "dx-col-87" },
+      "canonical": "reservations.filter_sale_price",
+      "notes": "Reservations — Sale Price column filter" },
+
+    { "when": { "urlPattern": "/reservations", "elementId": "dx-col-88" },
+      "canonical": "reservations.filter_actions",
+      "notes": "Reservations — Actions column" },
+
+    "═══ Sidebar navigation (common across all pages) ═══════════════",
+
+    { "when": { "label": "Insights" },
+      "canonical": "nav.insights",
+      "notes": "Sidebar — Insights link" },
+
+    { "when": { "label": "New Booking" },
+      "canonical": "nav.new_booking",
+      "notes": "Sidebar — New Booking link (page-specific 'Add new booking' rule above takes precedence)" },
+
+    { "when": { "label": "Hotel Rates" },
+      "canonical": "nav.hotel_rates",
+      "notes": "Sidebar — Hotel Rates link" },
+
+    { "when": { "label": "Hotel Stop Sales" },
+      "canonical": "nav.hotel_stop_sales",
+      "notes": "Sidebar — Hotel Stop Sales link" },
+
+    { "when": { "label": "Availability" },
+      "canonical": "nav.availability",
+      "notes": "Sidebar — Availability link" },
+
+    { "when": { "label": "Invoices" },
+      "canonical": "nav.invoices",
+      "notes": "Sidebar — Invoices link" }
   ]
 }
