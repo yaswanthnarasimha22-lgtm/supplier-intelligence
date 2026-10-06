@@ -50,6 +50,24 @@
       "canonical": "search.filter_changed",
       "notes": "Board filter: All Inclusive" },
 
+    "═══ Star rating toggles (home advanced filters) ═════════════════",
+
+    { "when": { "classContains": "hb-toggle-option", "label": "1" },
+      "canonical": "search.filter_changed",
+      "notes": "Star rating filter: 1 star" },
+    { "when": { "classContains": "hb-toggle-option", "label": "2" },
+      "canonical": "search.filter_changed",
+      "notes": "Star rating filter: 2 stars" },
+    { "when": { "classContains": "hb-toggle-option", "label": "3" },
+      "canonical": "search.filter_changed",
+      "notes": "Star rating filter: 3 stars" },
+    { "when": { "classContains": "hb-toggle-option", "label": "4" },
+      "canonical": "search.filter_changed",
+      "notes": "Star rating filter: 4 stars" },
+    { "when": { "classContains": "hb-toggle-option", "label": "5" },
+      "canonical": "search.filter_changed",
+      "notes": "Star rating filter: 5 stars" },
+
     "═══ Luxury / cancellation checkboxes ═══════════════════════════",
 
     { "when": { "label": "Luxury Collection" },
@@ -127,6 +145,13 @@
       },
       "canonical": "booking.search",
       "notes": "Bookings page — booking number / itinerary lookup input" },
+
+    { "when": {
+        "urlPattern": "/bookings/",
+        "formControlName": "single"
+      },
+      "canonical": "search.date_filter",
+      "notes": "Bookings page — date range filter (from or to; both inputs use formcontrolname='single')" },
 
     { "when": { "dataQa": "filters-form-btn" },
       "canonical": "search.filter_applied",
