@@ -202,5 +202,224 @@
       },
       "canonical": "search.filter_applied",
       "notes": "My Bookings — Search button (apply filters)" }
+  ],
+
+  "alturabeds": [
+
+    "═══ Header navigation ═══════════════════════════════════════════",
+
+    { "when": { "elementId": "navbarContent", "label": "Team" },
+      "canonical": "nav.team",
+      "notes": "Top nav — Team link" },
+
+    { "when": { "elementId": "navbarContent", "label": "About us" },
+      "canonical": "nav.about",
+      "notes": "Top nav — About us link" },
+
+    { "when": { "label": "Contact", "href": "/en/contact" },
+      "canonical": "nav.contact",
+      "notes": "Top nav — Contact link" },
+
+    { "when": { "label": "Bookings", "href": "/my-bookings" },
+      "canonical": "nav.bookings",
+      "notes": "Top nav — Bookings link" },
+
+    { "when": { "elementId": "languageDropdown" },
+      "canonical": "nav.language",
+      "notes": "Top nav — Language selector dropdown" },
+
+    { "when": { "elementId": "userDropdown" },
+      "canonical": "nav.account",
+      "notes": "Top nav — User / account dropdown" },
+
+    "═══ Home — Product tabs ═════════════════════════════════════════",
+
+    { "when": { "elementId": "pills-hotels-tab" },
+      "canonical": "search.product_hotels",
+      "notes": "Home — Hotels product tab" },
+
+    { "when": { "elementId": "pills-transfers-tab" },
+      "canonical": "search.product_transfers",
+      "notes": "Home — Transfers product tab" },
+
+    "═══ Home — Search form ══════════════════════════════════════════",
+
+    { "when": { "elementId": "destination-name" },
+      "canonical": "search.destination_selected",
+      "notes": "Home — 'Hotel or destination' input" },
+
+    { "when": { "elementId": "stay-dates" },
+      "canonical": "search.dates_selected",
+      "notes": "Home — Check-in / Check-out date picker" },
+
+    { "when": { "elementId": "guests-input-options" },
+      "canonical": "search.occupancy_selected",
+      "notes": "Home — Guests input" },
+
+    { "when": { "elementId": "nationality" },
+      "canonical": "search.nationality_selected",
+      "notes": "Home — Nationality selector" },
+
+    { "when": { "elementId": "select2-nationality-container" },
+      "canonical": "search.nationality_selected",
+      "notes": "Home — Nationality display container (Select2 widget)" },
+
+    { "when": { "elementId": "currency" },
+      "canonical": "search.currency_selected",
+      "notes": "Home — Currency selector" },
+
+    { "when": { "elementId": "select2-currency-container" },
+      "canonical": "search.currency_selected",
+      "notes": "Home — Currency display container (Select2 widget)" },
+
+    { "when": { "classContains": "optional-filters-ctn", "label": "button" },
+      "canonical": "search.filter_changed",
+      "notes": "Home — Advanced optional filters toggle" },
+
+    { "when": { "urlPattern": "/en/home", "label": "Search" },
+      "canonical": "search.submit",
+      "notes": "Home — main Search button" },
+
+    "═══ Home — Destination carousel ═════════════════════════════════",
+
+    { "when": { "classContains": "destination-carousel" },
+      "canonical": "search.destination_carousel_clicked",
+      "notes": "Home — Featured destination carousel link" },
+
+    "═══ My Bookings — Sub-navigation tabs ═══════════════════════════",
+
+    { "when": { "elementId": "showAloBooks" },
+      "canonical": "nav.accommodations_tab",
+      "notes": "My Bookings — Accommodations tab" },
+
+    { "when": { "elementId": "showTraBooks" },
+      "canonical": "nav.transfers_tab",
+      "notes": "My Bookings — Transfers tab" },
+
+    "═══ My Bookings — Booking inquiries header ══════════════════════",
+
+    { "when": { "elementId": "booking_id", "classContains": "booking_header_wrapper" },
+      "canonical": "booking.inquiries",
+      "notes": "My Bookings — Booking inquiries link (top header)" },
+
+    { "when": { "classContains": "booking_header_right", "urlPattern": "/my-bookings" },
+      "canonical": "booking.inquiries",
+      "notes": "My Bookings — Booking inquiries link (header right)" },
+
+    "═══ My Bookings — Filters ═══════════════════════════════════════",
+
+    { "when": { "elementId": "reference" },
+      "canonical": "booking.search",
+      "notes": "My Bookings — Booking reference input" },
+
+    { "when": { "elementId": "dateRangePicker" },
+      "canonical": "search.date_range_filter",
+      "notes": "My Bookings — Date range picker" },
+
+    { "when": { "elementId": "filter-name" },
+      "canonical": "search.name_filter",
+      "notes": "My Bookings — Agent name filter" },
+
+    { "when": { "elementId": "filter-hotel" },
+      "canonical": "search.hotel_filter",
+      "notes": "My Bookings — Hotel typeahead filter (container)" },
+
+    { "when": { "elementId": "filter-hotel-name" },
+      "canonical": "search.hotel_filter",
+      "notes": "My Bookings — Hotel name filter input" },
+
+    { "when": { "elementId": "cleanFilterInputs" },
+      "canonical": "search.filter_cleared",
+      "notes": "My Bookings — Clear all filters link" },
+
+    { "when": { "elementId": "applyFilters" },
+      "canonical": "search.filter_applied",
+      "notes": "My Bookings — Search / Apply filters button" },
+
+    "═══ My Bookings — Booking table ═════════════════════════════════",
+
+    { "when": {
+        "elementId": "hotel-booking-table",
+        "classContains": "d-md-table-cell"
+      },
+      "canonical": "booking.property_selected",
+      "notes": "My Bookings — Hotel name link in booking table row" },
+
+    { "when": {
+        "elementId": "hotel-booking-table",
+        "classContains": "td_arrow"
+      },
+      "canonical": "booking.view",
+      "notes": "My Bookings — Booking row expand/view arrow button" },
+
+    "═══ My Bookings — Pagination ════════════════════════════════════",
+
+    { "when": { "elementId": "search_pagination" },
+      "canonical": "nav.pagination",
+      "notes": "My Bookings — Booking list pagination" },
+
+    "═══ My Bookings — PDF export ════════════════════════════════════",
+
+    { "when": { "elementId": "info-header", "label": "PDF" },
+      "canonical": "export.pdf",
+      "notes": "My Bookings — PDF download button (header)" },
+
+    "═══ My Bookings — Booking inquiry form ══════════════════════════",
+
+    { "when": { "elementId": "con_res", "label": "New booking inquiry" },
+      "canonical": "booking.inquiry_new",
+      "notes": "My Bookings — New booking inquiry tab" },
+
+    { "when": { "elementId": "con_res", "label": "Inquiries history" },
+      "canonical": "booking.inquiry_history",
+      "notes": "My Bookings — Inquiries history tab" },
+
+    { "when": { "elementId": "consult_subject" },
+      "canonical": "booking.inquiry_subject",
+      "notes": "My Bookings — Inquiry subject dropdown" },
+
+    { "when": { "elementId": "consult_msg" },
+      "canonical": "booking.inquiry_message",
+      "notes": "My Bookings — Inquiry message textarea" },
+
+    { "when": { "elementId": "bookingForm", "label": "Send" },
+      "canonical": "booking.inquiry_submitted",
+      "notes": "My Bookings — Booking inquiry Send button" },
+
+    "═══ Contact page — Form ═════════════════════════════════════════",
+
+    { "when": { "elementId": "message_type" },
+      "canonical": "contact.message_type",
+      "notes": "Contact — Message type dropdown" },
+
+    { "when": { "elementId": "message" },
+      "canonical": "contact.message",
+      "notes": "Contact — Message textarea" },
+
+    { "when": { "elementId": "reload" },
+      "canonical": "contact.captcha_refresh",
+      "notes": "Contact — Reload CAPTCHA button" },
+
+    { "when": { "elementId": "captcha" },
+      "canonical": "contact.captcha_input",
+      "notes": "Contact — CAPTCHA input field" },
+
+    { "when": { "urlPattern": "/en/contact", "label": "Submit" },
+      "canonical": "contact.submitted",
+      "notes": "Contact — Submit contact form button" },
+
+    "═══ Footer — Legal links ════════════════════════════════════════",
+
+    { "when": { "label": "Privacy Policy" },
+      "canonical": "nav.privacy_policy",
+      "notes": "Footer — Privacy Policy link" },
+
+    { "when": { "label": "Terms of service" },
+      "canonical": "nav.terms_of_service",
+      "notes": "Footer — Terms of Service link" },
+
+    { "when": { "label": "Legal Notice" },
+      "canonical": "nav.legal_notice",
+      "notes": "Footer — Legal Notice link" }
   ]
 }
