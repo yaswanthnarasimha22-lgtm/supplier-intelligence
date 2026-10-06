@@ -78,6 +78,7 @@ function selectorPredicateMatches(when, event, meta) {
   if (when.dataCy           && !eq(meta.dataCy,             when.dataCy))          return false;
   if (when.dataAnalyticsId  && !eq(meta.dataAnalyticsId,    when.dataAnalyticsId)) return false;
   if (when.ariaLabel        && !eq(meta.ariaLabel,          when.ariaLabel))       return false;
+  if (when.ariaLabelledby   && !eq(meta.ariaLabelledby,     when.ariaLabelledby))  return false;
   if (when.elementId        && !eq(meta.elementId,          when.elementId))       return false;
   if (when.elementName      && !eq(meta.elementName,        when.elementName))     return false;
   if (when.formControlName  && !eq(meta.formControlName,    when.formControlName)) return false;

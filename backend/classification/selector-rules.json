@@ -131,5 +131,76 @@
     { "when": { "dataQa": "filters-form-btn" },
       "canonical": "search.filter_applied",
       "notes": "Bookings page — Apply filters button" }
+  ],
+
+  "bedswithease": [
+
+    "═══ Home search box ═════════════════════════════════════════════",
+
+    { "when": { "ariaLabelledby": "where-to-label" },
+      "canonical": "search.destination_selected",
+      "notes": "Home — 'Destination or hotel' input" },
+
+    { "when": { "ariaLabelledby": "check-in-date-label" },
+      "canonical": "search.checkin_selected",
+      "notes": "Home — Check-in date input" },
+
+    { "when": { "ariaLabelledby": "duration-label" },
+      "canonical": "search.nights_selected",
+      "notes": "Home — Nights selector" },
+
+    { "when": { "ariaLabelledby": "guests-label" },
+      "canonical": "search.occupancy_selected",
+      "notes": "Home — Guests selector" },
+
+    { "when": { "classContains": "search-panel__find-button" },
+      "canonical": "search.submit",
+      "notes": "Home — Find button" },
+
+    "═══ Header navigation ═══════════════════════════════════════════",
+
+    { "when": { "href": "/group-enquiry" },
+      "canonical": "nav.groups",
+      "notes": "Top nav — Groups" },
+
+    { "when": { "href": "/my-bookings" },
+      "canonical": "nav.bookings",
+      "notes": "Top nav — My Bookings" },
+
+    { "when": { "href": "/logout" },
+      "canonical": "auth.signout",
+      "notes": "Top nav — Logout" },
+
+    "═══ My Bookings page filters ════════════════════════════════════",
+
+    { "when": {
+        "urlPattern": "/my-bookings",
+        "classContains": "my-bookings-filter__input"
+      },
+      "canonical": "booking.search",
+      "notes": "My Bookings — Booking reference lookup input" },
+
+    { "when": { "ariaLabel": "Arrival From Date Day"   }, "canonical": "search.arrival_from_filter", "notes": "My Bookings — Arrival From day" },
+    { "when": { "ariaLabel": "Arrival From Date Month" }, "canonical": "search.arrival_from_filter", "notes": "My Bookings — Arrival From month" },
+    { "when": { "ariaLabel": "Arrival From Date Year"  }, "canonical": "search.arrival_from_filter", "notes": "My Bookings — Arrival From year" },
+
+    { "when": { "ariaLabel": "Arrival To Date Day"     }, "canonical": "search.arrival_to_filter",   "notes": "My Bookings — Arrival To day" },
+    { "when": { "ariaLabel": "Arrival To Date Month"   }, "canonical": "search.arrival_to_filter",   "notes": "My Bookings — Arrival To month" },
+    { "when": { "ariaLabel": "Arrival To Date Year"    }, "canonical": "search.arrival_to_filter",   "notes": "My Bookings — Arrival To year" },
+
+    { "when": { "ariaLabel": "Booking From Date Day"   }, "canonical": "search.booking_from_filter", "notes": "My Bookings — Booking From day" },
+    { "when": { "ariaLabel": "Booking From Date Month" }, "canonical": "search.booking_from_filter", "notes": "My Bookings — Booking From month" },
+    { "when": { "ariaLabel": "Booking From Date Year"  }, "canonical": "search.booking_from_filter", "notes": "My Bookings — Booking From year" },
+
+    { "when": { "ariaLabel": "Booking To Date Day"     }, "canonical": "search.booking_to_filter",   "notes": "My Bookings — Booking To day" },
+    { "when": { "ariaLabel": "Booking To Date Month"   }, "canonical": "search.booking_to_filter",   "notes": "My Bookings — Booking To month" },
+    { "when": { "ariaLabel": "Booking To Date Year"    }, "canonical": "search.booking_to_filter",   "notes": "My Bookings — Booking To year" },
+
+    { "when": {
+        "urlPattern": "/my-bookings",
+        "classContains": "search-button"
+      },
+      "canonical": "search.filter_applied",
+      "notes": "My Bookings — Search button (apply filters)" }
   ]
 }

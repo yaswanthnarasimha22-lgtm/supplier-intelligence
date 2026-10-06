@@ -177,6 +177,7 @@ text rules.  Shape:
 | `dataCy`            | exact                       | `metadata.dataCy`                      |
 | `dataAnalyticsId`   | exact                       | `metadata.dataAnalyticsId`             |
 | `ariaLabel`         | exact                       | `metadata.ariaLabel`                   |
+| `ariaLabelledby`    | exact                       | `metadata.ariaLabelledby` (id of the labelling element) |
 | `elementId`         | exact                       | `metadata.elementId`                   |
 | `elementName`       | exact                       | `metadata.elementName` (name attr)     |
 | `formControlName`   | exact                       | `metadata.formControlName`             |

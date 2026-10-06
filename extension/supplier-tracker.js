@@ -980,6 +980,7 @@ function autoBestElementText(el) {
     ds.analyticsLabel ||
     ds.testid ||
     el.getAttribute("aria-label") ||
+    autoResolveLabelledby(el) ||
     el.getAttribute("title") ||
     (el.textContent || "").trim() ||
     el.value ||
@@ -992,21 +993,24 @@ function autoBestElementText(el) {
 }
 
 /* Field label for form inputs: use associated <label>, aria-label,
-   name, placeholder, id — in that order. */
+   aria-labelledby (resolved), wrapping <label>, name, placeholder, id. */
 function autoFieldLabel(el) {
   if (!el) return "";
   if (el.labels && el.labels.length) {
     return (el.labels[0].textContent || "").trim();
   }
-  // Fall back to a wrapping <label> element — some suppliers wrap the
-  // input in a <label> without using the for= attribute, so el.labels
-  // is empty but a parent label still carries the human text.
+  // Some suppliers wrap the input in a <label> without using the for=
+  // attribute, so el.labels is empty but a parent label still carries
+  // the human prose.
   const wrapping = el.closest && el.closest("label");
-  if (wrapping) {
-    // Clone the label and strip the input itself so we only read the
-    // human prose beside/around the field.
-    return (wrapping.textContent || "").trim();
-  }
+  if (wrapping) return (wrapping.textContent || "").trim();
+
+  // aria-labelledby points at a sibling/elsewhere element that holds
+  // the label text — Beds With Ease uses this pattern on every search
+  // field (where-to-label, check-in-date-label, duration-label, …).
+  const labelledby = autoResolveLabelledby(el);
+  if (labelledby) return labelledby;
+
   return (
     el.getAttribute("aria-label") ||
     el.getAttribute("name") ||
@@ -1054,6 +1058,22 @@ function autoIsSensitiveInput(el) {
   return false;
 }
 
+/* Resolve an element's aria-labelledby to the concatenated text of the
+   referenced label elements.  Returns null when no match. */
+function autoResolveLabelledby(el) {
+  if (!el || !el.getAttribute) return null;
+  const ids = el.getAttribute("aria-labelledby");
+  if (!ids) return null;
+  const doc = el.ownerDocument;
+  if (!doc) return null;
+  const texts = ids.split(/\s+/)
+    .map((id) => doc.getElementById(id))
+    .filter(Boolean)
+    .map((node) => (node.textContent || "").trim())
+    .filter(Boolean);
+  return texts.length ? texts.join(" ") : null;
+}
+
 /* Collect automation-friendly attributes from an element.  These are
    the keys backend/classification/selector-rules.json matches against
    on the server, so a supplier like Hotelbeds that stamps data-qa on
@@ -1067,6 +1087,7 @@ function autoAttrs(el) {
     dataCy:           el.getAttribute("data-cy")           || null,
     dataAnalyticsId:  el.getAttribute("data-analytics-id") || null,
     ariaLabel:        el.getAttribute("aria-label")        || null,
+    ariaLabelledby:   el.getAttribute("aria-labelledby")   || null,
     formControlName:  el.getAttribute("formcontrolname")   || null,
     placeholder:      el.getAttribute("placeholder")       || null,
     classAttr:        el.getAttribute("class")             || null
