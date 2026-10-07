@@ -1824,5 +1824,176 @@
     { "when": { "label": "Yalago" },
       "canonical": "nav.home_logo",
       "notes": "Header/footer — Yalago logo link" }
+  ],
+
+  "w2m": [
+
+    "═══ Header navigation (persistent across all pages) ═══════════════",
+
+    { "when": { "elementId": "menu-option-hotels" },
+      "canonical": "nav.hotels",
+      "notes": "Top nav — Hotels" },
+
+    { "when": { "elementId": "menu-option-villas" },
+      "canonical": "nav.villas",
+      "notes": "Top nav — Villas" },
+
+    { "when": { "elementId": "menu-option-transfers" },
+      "canonical": "nav.transfers",
+      "notes": "Top nav — Transfers" },
+
+    { "when": { "elementId": "menu-option-services" },
+      "canonical": "nav.tickets_excursions",
+      "notes": "Top nav — Tickets and excursions" },
+
+    { "when": { "elementId": "menu-option-grupos" },
+      "canonical": "nav.groups",
+      "notes": "Top nav — Groups" },
+
+    { "when": { "elementId": "menu-option-circuitos" },
+      "canonical": "nav.tours",
+      "notes": "Top nav — Tours" },
+
+    { "when": { "elementId": "menu-option-ski" },
+      "canonical": "nav.ski",
+      "notes": "Top nav — Ski" },
+
+    { "when": { "classContains": "shopping-basket--mini__open-button" },
+      "canonical": "nav.cart",
+      "notes": "Top nav — Shopping cart (basket) toggle (role=button anchor)" },
+
+    "═══ User bar (right-hand side, persistent) ════════════════════════",
+
+    { "when": { "href": "/support/agencySupport.aspx" },
+      "canonical": "nav.agency_support",
+      "notes": "User bar — Agency support (also fires mailto)" },
+
+    { "when": { "href": "/content/content.aspx?id=540255" },
+      "canonical": "nav.customer_care",
+      "notes": "User bar — Customer Care" },
+
+    { "when": { "href": "/content/content.aspx?id=5513" },
+      "canonical": "nav.offers",
+      "notes": "User bar — Offers" },
+
+    { "when": { "href": "login.aspx?action=logout" },
+      "canonical": "auth.logout",
+      "notes": "User bar — Logout icon (anchor has no visible text, only glyphicon)" },
+
+    { "when": { "href": "/users/bookings.aspx", "label": "My bookings" },
+      "canonical": "nav.my_bookings",
+      "notes": "User bar + sidebar — My bookings (same canonical for both)" },
+
+    { "when": { "href": "/users/agentProfile.aspx", "label": "My profile" },
+      "canonical": "nav.my_profile",
+      "notes": "Sidebar — My profile link" },
+
+    "═══ Home — hotel search widget ════════════════════════════════════",
+
+    { "when": { "elementId": "hotel-searcher-_ctl1__ctl1__ctl1_pageBody_pageBody_searcher__ctl0_ctlZoneSelector-input" },
+      "canonical": "search.destination",
+      "notes": "Hotel search — Destination / hotel-name typeahead input" },
+
+    { "when": { "elementId": "hotel-searcher-_ctl1__ctl1__ctl1_pageBody_pageBody_searcher__ctl0_ctlDateSelector-start-date-input" },
+      "canonical": "search.check_in",
+      "notes": "Hotel search — Check-in date input (datepicker)" },
+
+    { "when": { "elementId": "hotel-searcher-_ctl1__ctl1__ctl1_pageBody_pageBody_searcher__ctl0_ctlDateSelector-end-date-input" },
+      "canonical": "search.check_out",
+      "notes": "Hotel search — Check-out date input (datepicker)" },
+
+    { "when": { "elementId": "select2-hotel-searcher-_ctl1__ctl1__ctl1_pageBody_pageBody_searcher__ctl0_ctlDateSelector-length-selector-container" },
+      "canonical": "search.nights",
+      "notes": "Hotel search — Nights select2 wrapper (fires when Select2 bubbles role=button)" },
+
+    { "when": { "elementId": "hotel-searcher-_ctl1__ctl1__ctl1_pageBody_pageBody_searcher__ctl0_ctlRoomSelector-room-selector-button" },
+      "canonical": "search.distribution",
+      "notes": "Hotel search — Rooms / Persons distribution toggle (role=button anchor)" },
+
+    { "when": { "elementId": "select2-hotel-searcher-nationality-container" },
+      "canonical": "search.nationality",
+      "notes": "Hotel search — Nationality select2 wrapper" },
+
+    { "when": { "label": "search", "classContains": "searcher-button" },
+      "canonical": "search.submit",
+      "notes": "Hotel search — Search submit button (class 'searcher-button' distinguishes from bookings page 'users-searcher__search-button')" },
+
+    "═══ Home — find the booking widget ════════════════════════════════",
+
+    { "when": { "elementId": "bookings-searcher-bookingCode" },
+      "canonical": "home.find_booking_locator_input",
+      "notes": "Find the booking — locator text input (home-page shortcut)" },
+
+    { "when": { "label": "View monthly bookings" },
+      "canonical": "home.view_monthly_bookings",
+      "notes": "Find the booking — View monthly bookings shortcut" },
+
+    { "when": { "label": "View weekly bookings" },
+      "canonical": "home.view_weekly_bookings",
+      "notes": "Find the booking — View weekly bookings shortcut" },
+
+    { "when": { "label": "View today bookings" },
+      "canonical": "home.view_today_bookings",
+      "notes": "Find the booking — View today bookings shortcut" },
+
+    { "when": { "label": "View pending payment bookings" },
+      "canonical": "home.view_pending_payment_bookings",
+      "notes": "Find the booking — View pending payment bookings shortcut" },
+
+    "═══ My Bookings page (/users/bookings.aspx) ═══════════════════════",
+
+    { "when": { "elementName": "bookingCode", "urlPattern": "/users/bookings" },
+      "canonical": "bookings.filter_booking_reference",
+      "notes": "Bookings filter — Booking reference text input" },
+
+    { "when": { "elementName": "agencyBookingCode", "urlPattern": "/users/bookings" },
+      "canonical": "bookings.filter_agency_reference",
+      "notes": "Bookings filter — Agency reference text input" },
+
+    { "when": { "elementName": "bookingHolder", "urlPattern": "/users/bookings" },
+      "canonical": "bookings.filter_booking_holder",
+      "notes": "Bookings filter — Booking holder text input" },
+
+    { "when": { "elementName": "paxName", "urlPattern": "/users/bookings" },
+      "canonical": "bookings.filter_passenger_name",
+      "notes": "Bookings filter — Passenger name text input" },
+
+    { "when": { "elementName": "dateFilterType", "urlPattern": "/users/bookings" },
+      "canonical": "bookings.filter_date_type",
+      "notes": "Bookings filter — Date type underlying <select> (Booking date / Arrival date)" },
+
+    { "when": { "elementName": "bookingStatusType", "urlPattern": "/users/bookings" },
+      "canonical": "bookings.filter_booking_state",
+      "notes": "Bookings filter — Booking state underlying <select>" },
+
+    { "when": { "elementName": "agent", "urlPattern": "/users/bookings" },
+      "canonical": "bookings.filter_agent",
+      "notes": "Bookings filter — Agent underlying <select>" },
+
+    { "when": { "elementName": "moduleType", "urlPattern": "/users/bookings" },
+      "canonical": "bookings.filter_product",
+      "notes": "Bookings filter — Product underlying <select>" },
+
+    { "when": { "elementId": "_ctl1__ctl1__ctl1_pageBody_pageBody_pageBody_ctlDates-start-date-input" },
+      "canonical": "bookings.filter_date_from",
+      "notes": "Bookings filter — Date range From" },
+
+    { "when": { "elementId": "_ctl1__ctl1__ctl1_pageBody_pageBody_pageBody_ctlDates-end-date-input" },
+      "canonical": "bookings.filter_date_to",
+      "notes": "Bookings filter — Date range To" },
+
+    { "when": { "elementId": "_ctl1__ctl1__ctl1_pageBody_pageBody_pageBody_ctlZoneSelector-input" },
+      "canonical": "bookings.filter_location",
+      "notes": "Bookings filter — Location zone-selector input" },
+
+    { "when": { "label": "search", "classContains": "users-searcher__search-button" },
+      "canonical": "bookings.search_submit",
+      "notes": "Bookings page — Search submit button" },
+
+    "═══ My Profile page (/users/agentProfile.aspx) ════════════════════",
+
+    { "when": { "label": "save", "classContains": "users-agent-form__updateself-button" },
+      "canonical": "profile.save",
+      "notes": "My profile — Save button" }
   ]
 }
