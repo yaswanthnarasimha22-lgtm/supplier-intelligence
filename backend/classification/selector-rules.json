@@ -898,5 +898,931 @@
       },
       "canonical": "invoices.pagination_last",
       "notes": "Invoices — pagination Last button" }
+  ],
+
+  "sunhotels": [
+
+    "═══ Header navigation (persistent across all pages) ══════════════",
+
+    { "when": { "elementId": "link-to-agent" },
+      "canonical": "nav.home",
+      "notes": "Side nav — Home (Agent/accommodation search) link" },
+
+    { "when": { "elementId": "link-to-bookings" },
+      "canonical": "nav.bookings",
+      "notes": "Side nav — Bookings link" },
+
+    { "when": { "elementId": "link-to-invoices" },
+      "canonical": "nav.invoices",
+      "notes": "Side nav — Invoices link" },
+
+    { "when": { "elementId": "link-to-statistics" },
+      "canonical": "nav.statistics",
+      "notes": "Side nav — Statistics link" },
+
+    { "when": { "elementId": "link-to-voucher-configuration" },
+      "canonical": "nav.voucher_configuration",
+      "notes": "Side nav — Voucher configuration link" },
+
+    { "when": { "elementId": "logOutLink" },
+      "canonical": "auth.signout",
+      "notes": "Top bar — Log out link" },
+
+    { "when": { "elementId": "goToAgent" },
+      "canonical": "nav.product_accommodation",
+      "notes": "Product tab — Accommodation (on Transfer/Activities pages)" },
+
+    { "when": { "elementId": "goToTransfer" },
+      "canonical": "nav.product_transfer",
+      "notes": "Product tab — Transfer" },
+
+    { "when": { "elementId": "goToActivities" },
+      "canonical": "nav.product_activities",
+      "notes": "Product tab — Activities" },
+
+    "═══ Footer (persistent across all pages) ═════════════════════════",
+
+    { "when": { "label": "Contact" },
+      "canonical": "nav.contact",
+      "notes": "Footer — Contact link" },
+
+    { "when": { "label": "Terms and conditions" },
+      "canonical": "nav.terms",
+      "notes": "Footer — Terms and conditions link" },
+
+    { "when": { "label": "Privacy policy" },
+      "canonical": "nav.privacy",
+      "notes": "Footer — Privacy policy link" },
+
+    { "when": { "label": "Corporate Governance" },
+      "canonical": "nav.corporate_governance",
+      "notes": "Footer — Corporate Governance link" },
+
+    "═══ Accommodation search form (/en/Agent) ════════════════════════",
+
+    { "when": { "elementId": "basic-search-menu-button" },
+      "canonical": "search.mode_basic",
+      "notes": "Agent — 'Basic search' tab" },
+
+    { "when": { "elementId": "advanced-search-menu-button" },
+      "canonical": "search.mode_advanced",
+      "notes": "Agent — 'Advanced search' tab" },
+
+    { "when": { "elementId": "POI-search-menu-button" },
+      "canonical": "search.mode_poi",
+      "notes": "Agent — 'Point of interest' tab" },
+
+    { "when": { "elementId": "inputSearchAccommodation" },
+      "canonical": "search.destination_selected",
+      "notes": "Agent/Transfer — Destination, Resort or Hotel name input" },
+
+    { "when": { "elementId": "nationality-selector" },
+      "canonical": "search.nationality_selected",
+      "notes": "Agent — Nationality dropdown" },
+
+    { "when": { "elementId": "basic-check-in" },
+      "canonical": "search.checkin_selected",
+      "notes": "Check-in / date-from input — reused across Agent, Transfer, Statistics and Invoices search forms. On the Bookings page specifically this id repeats twice (Booking-date range AND Arrival-date range) with no other distinguishing attribute, so on that page alone the two cannot be told apart from id." },
+
+    { "when": { "elementId": "basic-check-out" },
+      "canonical": "search.checkout_selected",
+      "notes": "Check-out / date-to input — reused across Agent, Transfer, Statistics and Invoices search forms. Same Bookings-page caveat as basic-check-in." },
+
+    { "when": { "elementId": "basic-rooms-number-selector" },
+      "canonical": "search.rooms_selected",
+      "notes": "Agent — Rooms count dropdown" },
+
+    { "when": { "elementId": "basic-adults-number-selector" },
+      "canonical": "search.adults_selected",
+      "notes": "Agent — Adults count dropdown" },
+
+    { "when": { "elementId": "basic-children-number-selector" },
+      "canonical": "search.children_selected",
+      "notes": "Agent — Children count dropdown" },
+
+    { "when": { "label": "Infant" },
+      "canonical": "search.infant_toggle",
+      "notes": "Agent — Infant checkbox" },
+
+    { "when": { "elementId": "basic-submit-btn" },
+      "canonical": "search.submit",
+      "notes": "Agent — Search button" },
+
+    "═══ Bookings page (/en/bookings/) ════════════════════════════════",
+
+    { "when": { "elementId": "today-booking-btn" },
+      "canonical": "bookings.quick_filter_today",
+      "notes": "Bookings — Today's bookings quick filter" },
+
+    { "when": { "elementId": "last-100-bookings-btn" },
+      "canonical": "bookings.quick_filter_last_100",
+      "notes": "Bookings — Last 100 bookings quick filter" },
+
+    { "when": { "elementId": "today-arrival-btn" },
+      "canonical": "bookings.quick_filter_arrivals_today",
+      "notes": "Bookings — Arrivals today quick filter" },
+
+    { "when": { "elementId": "bookingNumber" },
+      "canonical": "bookings.filter_booking_number",
+      "notes": "Bookings — Booking number input" },
+
+    { "when": { "elementId": "input-adult-guest-name" },
+      "canonical": "bookings.filter_guest_name",
+      "notes": "Bookings — Guest name input" },
+
+    { "when": {
+        "urlPattern": "/en/bookings/",
+        "elementId": "multiselector-item-button-active"
+      },
+      "canonical": "bookings.filter_status_active",
+      "notes": "Bookings — Status filter: Active (id is reused as 'Paid' on Invoices — must stay urlPattern-scoped)" },
+
+    { "when": {
+        "urlPattern": "/en/bookings/",
+        "elementId": "multiselector-item-button-cancelled"
+      },
+      "canonical": "bookings.filter_status_cancelled",
+      "notes": "Bookings — Status filter: Cancelled (id is reused as 'Not paid' on Invoices — must stay urlPattern-scoped)" },
+
+    { "when": {
+        "urlPattern": "/en/bookings/",
+        "elementId": "multiselector-item-button-travelled"
+      },
+      "canonical": "bookings.filter_status_travelled",
+      "notes": "Bookings — Status filter: Travelled (id is reused as 'Credit' on Invoices — must stay urlPattern-scoped)" },
+
+    { "when": { "elementId": "multiselector-item-button-request" },
+      "canonical": "bookings.filter_status_on_request",
+      "notes": "Bookings — Status filter: On request (id not reused elsewhere)" },
+
+    { "when": { "elementId": "multiselector-item-button-hotels" },
+      "canonical": "bookings.filter_product_hotels",
+      "notes": "Bookings — Product filter: Hotels" },
+
+    { "when": { "elementId": "multiselector-item-button-transfers" },
+      "canonical": "bookings.filter_product_transfers",
+      "notes": "Bookings — Product filter: Transfers" },
+
+    { "when": { "elementId": "multiselector-item-button-events" },
+      "canonical": "bookings.filter_product_activities",
+      "notes": "Bookings — Product filter: Activities" },
+
+    { "when": { "elementId": "show-advanced-filters" },
+      "canonical": "bookings.show_advanced_filters",
+      "notes": "Bookings — 'More search options' toggle" },
+
+    { "when": { "elementId": "booking-cancel-btn" },
+      "canonical": "bookings.filter_cleared",
+      "notes": "Bookings — Clear (reset) search form button" },
+
+    { "when": { "elementId": "booking-submit-btn" },
+      "canonical": "bookings.filter_applied",
+      "notes": "Bookings — Search button" },
+
+    { "when": { "label": "See more details" },
+      "canonical": "bookings.see_more_details",
+      "notes": "Bookings — Load more results button" },
+
+    { "when": { "label": "Full details" },
+      "canonical": "bookings.view_full_details",
+      "notes": "Bookings — row action: Full details (repeats per row; underlying id embeds the booking code)" },
+
+    { "when": { "label": "Amend" },
+      "canonical": "bookings.amend",
+      "notes": "Bookings — row action: Amend (repeats per row)" },
+
+    { "when": { "label": "Add transfer" },
+      "canonical": "bookings.add_transfer",
+      "notes": "Bookings — row action: Add transfer (repeats per row)" },
+
+    { "when": { "label": "Cancel" },
+      "canonical": "bookings.cancel",
+      "notes": "Bookings — row action: Cancel (repeats per row; underlying id embeds the booking code)" },
+
+    "═══ Invoices page (/en/invoices/) ════════════════════════════════",
+
+    { "when": { "elementId": "show-invoices-overdue" },
+      "canonical": "invoices.quick_filter_overdue",
+      "notes": "Invoices — Invoices overdue quick filter" },
+
+    { "when": { "elementId": "booking-number-invoices" },
+      "canonical": "invoices.filter_booking_number",
+      "notes": "Invoices — Booking number input" },
+
+    { "when": { "elementId": "invoice-number-invoices" },
+      "canonical": "invoices.filter_invoice_number",
+      "notes": "Invoices — Invoice number input" },
+
+    { "when": {
+        "urlPattern": "/en/invoices/",
+        "elementId": "multiselector-item-button-active"
+      },
+      "canonical": "invoices.filter_status_paid",
+      "notes": "Invoices — Status filter: Paid (same id as Bookings' 'Active' — urlPattern-scoped)" },
+
+    { "when": { "elementId": "multiselector-item-button-paid-credit" },
+      "canonical": "invoices.filter_status_paid_credit",
+      "notes": "Invoices — Status filter: Paid credit" },
+
+    { "when": {
+        "urlPattern": "/en/invoices/",
+        "elementId": "multiselector-item-button-travelled"
+      },
+      "canonical": "invoices.filter_status_credit",
+      "notes": "Invoices — Status filter: Credit (same id as Bookings' 'Travelled' — urlPattern-scoped)" },
+
+    { "when": {
+        "urlPattern": "/en/invoices/",
+        "elementId": "multiselector-item-button-cancelled"
+      },
+      "canonical": "invoices.filter_status_not_paid",
+      "notes": "Invoices — Status filter: Not paid (same id as Bookings' 'Cancelled' — urlPattern-scoped)" },
+
+    { "when": { "elementId": "multiselector-item-button-hotel" },
+      "canonical": "invoices.filter_product_hotels",
+      "notes": "Invoices — Product filter: Hotels (singular id — distinct from Bookings' 'hotels')" },
+
+    { "when": { "elementId": "multiselector-item-button-transfer" },
+      "canonical": "invoices.filter_product_transfers",
+      "notes": "Invoices — Product filter: Transfers (singular id — distinct from Bookings' 'transfers')" },
+
+    { "when": { "elementId": "multiselector-item-button-event" },
+      "canonical": "invoices.filter_product_activities",
+      "notes": "Invoices — Product filter: Activities (singular id — distinct from Bookings' 'events')" },
+
+    { "when": { "elementId": "invoices-cancel-btn" },
+      "canonical": "invoices.filter_cleared",
+      "notes": "Invoices — Clear (reset) search form button" },
+
+    { "when": { "elementId": "invoices-submit-btn" },
+      "canonical": "invoices.filter_applied",
+      "notes": "Invoices — Search button" },
+
+    "═══ Statistics page (/en/statistics/) ═════════════════════════════",
+
+    { "when": { "elementId": "search-mode-selector" },
+      "canonical": "statistics.search_mode_selected",
+      "notes": "Statistics — Search mode dropdown" },
+
+    { "when": { "elementId": "group-mode-selector" },
+      "canonical": "statistics.group_mode_selected",
+      "notes": "Statistics — Group by dropdown" },
+
+    { "when": { "label": "Compare with other period" },
+      "canonical": "statistics.compare_period_toggle",
+      "notes": "Statistics — Compare-with-other-period checkbox" },
+
+    { "when": { "elementId": "statistics-submit-btn" },
+      "canonical": "statistics.submit",
+      "notes": "Statistics — Search button" },
+
+    "═══ Voucher configuration page (/en/voucher-configuration/) ══════",
+
+    { "when": { "label": "See hotel voucher example" },
+      "canonical": "voucher.view_hotel_example",
+      "notes": "Voucher config — See hotel voucher example link" },
+
+    { "when": { "label": "See transfer voucher" },
+      "canonical": "voucher.view_transfer_example",
+      "notes": "Voucher config — See transfer voucher link" },
+
+    { "when": { "label": "See mobile voucher" },
+      "canonical": "voucher.view_mobile_example",
+      "notes": "Voucher config — See mobile voucher link" },
+
+    { "when": { "label": "Set voucher in theme creator" },
+      "canonical": "voucher.open_theme_creator",
+      "notes": "Voucher config — Set voucher in theme creator link" },
+
+    { "when": { "elementId": "voucherThemeInput" },
+      "canonical": "voucher.theme_input",
+      "notes": "Voucher config — Theme color/value input" },
+
+    { "when": { "elementId": "set-theme-button" },
+      "canonical": "voucher.apply_theme",
+      "notes": "Voucher config — Apply custom theme button" },
+
+    "═══ Transfer search form (/en/transfer/) ══════════════════════════",
+
+    { "when": { "elementId": "transfer-select-country" },
+      "canonical": "transfer.country_selected",
+      "notes": "Transfer — Country dropdown" },
+
+    { "when": { "elementId": "transfer-select-destination" },
+      "canonical": "transfer.destination_selected",
+      "notes": "Transfer — Destination dropdown" },
+
+    { "when": { "elementId": "transfer-select-resort" },
+      "canonical": "transfer.resort_selected",
+      "notes": "Transfer — Resort dropdown" },
+
+    { "when": { "elementId": "transfer-select-hotel" },
+      "canonical": "transfer.hotel_selected",
+      "notes": "Transfer — Hotel dropdown" },
+
+    { "when": { "label": "Hotel not listed, specify in next step" },
+      "canonical": "transfer.hotel_not_listed_toggle",
+      "notes": "Transfer — 'Hotel not listed' checkbox" },
+
+    { "when": { "elementId": "transfer-cancel-btn" },
+      "canonical": "transfer.filter_cleared",
+      "notes": "Transfer — Clear (reset) search form button" },
+
+    { "when": { "elementId": "advanced-submit-btn" },
+      "canonical": "transfer.submit",
+      "notes": "Transfer — Search button" }
+  ],
+
+  "suninternational": [
+
+    "═══ Header / breadcrumb (persistent across all pages) ════════════",
+    "Note: label matching is case-insensitive substring. More specific",
+    "labels are listed BEFORE shorter labels they contain (e.g. 'My",
+    "bookings' before 'Bookings') so the specific rule wins under",
+    "first-match-wins resolution.",
+
+    { "when": { "elementId": "logOutLink" },
+      "canonical": "auth.signout",
+      "notes": "Header — Log out link" },
+
+    { "when": { "label": "Agents area" },
+      "canonical": "nav.agents_area_menu",
+      "notes": "Header — Agents area dropdown trigger (must precede sidebar 'Agents' rule)" },
+
+    { "when": { "label": "HOTELS" },
+      "canonical": "nav.product_hotels",
+      "notes": "Top nav — Hotels product tab (case-insensitive match also covers home search-box 'Hotels' tab)" },
+
+    { "when": { "label": "EXCURSIONS" },
+      "canonical": "nav.product_excursions",
+      "notes": "Top nav — Excursions product tab" },
+
+    { "when": { "label": "TRANSFERS" },
+      "canonical": "nav.product_transfers",
+      "notes": "Top nav — Transfers product tab (case-insensitive match also covers home search-box 'Transfers' tab)" },
+
+    { "when": { "label": "Services" },
+      "canonical": "search.tab_services",
+      "notes": "Home search box — Services tab" },
+
+    { "when": { "label": "My account" },
+      "canonical": "nav.my_account",
+      "notes": "Breadcrumb link AND sidebar 'My account' group-toggle button — merged, both lead to the account area" },
+
+    { "when": { "label": "Home" },
+      "canonical": "nav.home",
+      "notes": "Breadcrumb — Home link" },
+
+    "═══ Sidebar menu — group toggles and items ═══════════════════════",
+
+    { "when": { "label": "My bookings" },
+      "canonical": "nav.my_bookings",
+      "notes": "Sidebar — My bookings link (must precede generic 'Bookings' rule)" },
+
+    { "when": { "label": "My quotations" },
+      "canonical": "nav.my_quotations",
+      "notes": "Sidebar — My quotations link" },
+
+    { "when": { "label": "Bookings" },
+      "canonical": "nav.group_bookings",
+      "notes": "Sidebar — Bookings group-toggle button" },
+
+    { "when": { "label": "My invoices" },
+      "canonical": "nav.my_invoices",
+      "notes": "Sidebar — My invoices link" },
+
+    { "when": { "label": "My payments" },
+      "canonical": "nav.my_payments",
+      "notes": "Sidebar — My payments link" },
+
+    { "when": { "label": "Accounting" },
+      "canonical": "nav.group_accounting",
+      "notes": "Sidebar — Accounting group-toggle button" },
+
+    { "when": { "label": "My profile" },
+      "canonical": "nav.my_profile",
+      "notes": "Sidebar — My profile link" },
+
+    { "when": { "label": "Save password" },
+      "canonical": "password.save",
+      "notes": "Password page — Save password button (must precede the shorter 'Password' sidebar-link rule below, since 'Save password' contains 'Password' as a substring)" },
+
+    { "when": { "label": "Password" },
+      "canonical": "nav.password",
+      "notes": "Sidebar — Password link" },
+
+    { "when": { "label": "Agents" },
+      "canonical": "nav.agents",
+      "notes": "Sidebar — Agents link (evaluated after 'Agents area' above)" },
+
+    "═══ Footer links (persistent across all pages) ═══════════════════",
+
+    { "when": { "label": "Who we are" },
+      "canonical": "nav.who_we_are",
+      "notes": "Footer — Who we are link" },
+
+    { "when": { "label": "Privacy policy" },
+      "canonical": "nav.privacy",
+      "notes": "Footer — Privacy policy link" },
+
+    { "when": { "label": "Terms & Conditions" },
+      "canonical": "nav.terms",
+      "notes": "Footer — Terms & Conditions link" },
+
+    { "when": { "label": "FAQs" },
+      "canonical": "nav.faqs",
+      "notes": "Footer — FAQs link" },
+
+    { "when": { "label": "Egypt Climate Guide" },
+      "canonical": "nav.climate_guide",
+      "notes": "Footer — Egypt Climate Guide link" },
+
+    "═══ Bookings / Quotations search form (bookings.aspx) ════════════",
+
+    { "when": { "elementId": "agent" },
+      "canonical": "search.filter_agent",
+      "notes": "Bookings — Agent dropdown" },
+
+    { "when": { "elementId": "agencyBoookingCode" },
+      "canonical": "search.filter_agency_reference",
+      "notes": "Bookings — Agency reference input" },
+
+    { "when": { "elementId": "bookingCode" },
+      "canonical": "search.filter_booking_id",
+      "notes": "Bookings — Booking ID input" },
+
+    { "when": { "elementName": "bookingCode" },
+      "canonical": "search.filter_booking_id",
+      "notes": "Invoices/Charges — Booking code filter (no id on this page; matched by name attribute instead)" },
+
+    { "when": { "elementId": "bookingStatusType" },
+      "canonical": "search.filter_booking_status",
+      "notes": "Bookings — Booking status dropdown" },
+
+    { "when": { "elementId": "moduleType" },
+      "canonical": "search.filter_module_type",
+      "notes": "Bookings — Module type (Hotels/Transfers/Activities) dropdown" },
+
+    { "when": { "elementId": "bookingHolder" },
+      "canonical": "search.filter_booking_holder",
+      "notes": "Bookings — Booking holder name input" },
+
+    { "when": { "elementId": "paxName" },
+      "canonical": "search.filter_pax_name",
+      "notes": "Bookings — Passenger first name input" },
+
+    { "when": { "elementId": "paxSurname" },
+      "canonical": "search.filter_pax_surname",
+      "notes": "Bookings — Passenger surname input" },
+
+    { "when": { "elementId": "dateFilterType" },
+      "canonical": "search.filter_date_type",
+      "notes": "Bookings — Date filter type (Creation date / etc.) dropdown" },
+
+    { "when": { "elementId": "ticketsIssued" },
+      "canonical": "search.filter_tickets_issued",
+      "notes": "Bookings — Tickets issued checkbox" },
+
+    { "when": { "elementId": "ticketsNotIssued" },
+      "canonical": "search.filter_tickets_not_issued",
+      "notes": "Bookings — Tickets not issued checkbox" },
+
+    { "when": {
+        "elementId": "_ctl1__ctl1__ctl1_pageBody_pageBody_pageBody_ctlDates-start-date-input"
+      },
+      "canonical": "search.date_from",
+      "notes": "Bookings/Invoices/Charges — date-from filter (same id reused across these pages with the same meaning)" },
+
+    { "when": {
+        "elementId": "_ctl1__ctl1__ctl1_pageBody_pageBody_pageBody_ctlDates-end-date-input"
+      },
+      "canonical": "search.date_to",
+      "notes": "Bookings/Invoices/Charges — date-to filter (same id reused across these pages with the same meaning)" },
+
+    { "when": { "classContains": "js-search-items" },
+      "canonical": "search.submit",
+      "notes": "Bookings/Invoices/Charges/Agents — Search button (no stable id; buttons share this class)" },
+
+    { "when": { "classContains": "js-reset-searcher-fields" },
+      "canonical": "search.filter_cleared",
+      "notes": "Bookings/Invoices/Charges — Clear (reset) search form button" },
+
+    { "when": { "elementId": "resultsperpage" },
+      "canonical": "search.results_per_page_changed",
+      "notes": "Bookings/Invoices/Charges — Results per page dropdown" },
+
+    "═══ Invoices page (invoices.aspx) ═════════════════════════════════",
+
+    { "when": { "elementName": "invoiceNumber" },
+      "canonical": "search.filter_invoice_number",
+      "notes": "Invoices/Charges — Invoice number filter (no id on this page; matched by name attribute)" },
+
+    { "when": { "elementId": "showProformas" },
+      "canonical": "search.filter_show_proformas",
+      "notes": "Invoices — Show proformas checkbox" },
+
+    "═══ Charges page (charges.aspx) ═══════════════════════════════════",
+
+    { "when": { "elementName": "chargeNumber" },
+      "canonical": "search.filter_charge_number",
+      "notes": "Charges — Charge number filter (no id on this page; matched by name attribute)" },
+
+    "═══ Agents page (agents.aspx) ═════════════════════════════════════",
+
+    { "when": { "label": "Add Agent" },
+      "canonical": "agents.add_agent",
+      "notes": "Agents — Add Agent button" },
+
+    { "when": { "elementId": "name" },
+      "canonical": "search.filter_agent_name",
+      "notes": "Agents — Agent name filter input" },
+
+    { "when": { "label": "Export to Excel" },
+      "canonical": "export.excel",
+      "notes": "Agents/Bookings — Export to Excel button" },
+
+    "═══ Agency profile page (agency.aspx) ═════════════════════════════",
+
+    { "when": { "elementName": "userName" },
+      "canonical": "agency.field_username",
+      "notes": "Agency profile — Username input" },
+
+    { "when": { "elementName": "nombreAgencia" },
+      "canonical": "agency.field_agency_name",
+      "notes": "Agency profile — Agency name input" },
+
+    { "when": { "elementName": "nombreFiscal" },
+      "canonical": "agency.field_fiscal_name",
+      "notes": "Agency profile — Fiscal (legal) name input" },
+
+    { "when": { "elementName": "margin" },
+      "canonical": "agency.field_margin",
+      "notes": "Agency profile — Margin input" },
+
+    { "when": { "elementName": "personaCont" },
+      "canonical": "agency.field_contact_person",
+      "notes": "Agency profile — Contact person input" },
+
+    { "when": { "elementName": "emailCont" },
+      "canonical": "agency.field_contact_email",
+      "notes": "Agency profile — Contact email input" },
+
+    { "when": { "elementName": "direccionCont" },
+      "canonical": "agency.field_contact_address",
+      "notes": "Agency profile — Contact address input" },
+
+    { "when": { "elementName": "poblacionCont" },
+      "canonical": "agency.field_contact_city",
+      "notes": "Agency profile — Contact city input" },
+
+    { "when": { "elementName": "codigoPostalCont" },
+      "canonical": "agency.field_contact_postcode",
+      "notes": "Agency profile — Contact postcode input" },
+
+    { "when": { "elementName": "telefono1Cont" },
+      "canonical": "agency.field_contact_phone1",
+      "notes": "Agency profile — Contact phone 1 input" },
+
+    { "when": { "elementName": "telefono2Cont" },
+      "canonical": "agency.field_contact_phone2",
+      "notes": "Agency profile — Contact phone 2 input" },
+
+    { "when": { "elementName": "telefonoMovilCont" },
+      "canonical": "agency.field_contact_mobile",
+      "notes": "Agency profile — Contact mobile phone input" },
+
+    { "when": { "elementName": "faxCont" },
+      "canonical": "agency.field_contact_fax",
+      "notes": "Agency profile — Contact fax input" },
+
+    { "when": { "label": "click here" },
+      "canonical": "agency.copy_contact_to_billing",
+      "notes": "Agency profile — 'click here' link to copy contact details into billing fields" },
+
+    { "when": { "elementName": "personaFact" },
+      "canonical": "agency.field_billing_person",
+      "notes": "Agency profile — Billing contact person input" },
+
+    { "when": { "elementName": "nombreEmpresaFact" },
+      "canonical": "agency.field_billing_company_name",
+      "notes": "Agency profile — Billing company name input" },
+
+    { "when": { "elementName": "emailFact" },
+      "canonical": "agency.field_billing_email",
+      "notes": "Agency profile — Billing email input" },
+
+    { "when": { "elementName": "direccionFact" },
+      "canonical": "agency.field_billing_address",
+      "notes": "Agency profile — Billing address input" },
+
+    { "when": { "elementName": "poblacionFact" },
+      "canonical": "agency.field_billing_city",
+      "notes": "Agency profile — Billing city input" },
+
+    { "when": { "elementName": "codigoPostalFact" },
+      "canonical": "agency.field_billing_postcode",
+      "notes": "Agency profile — Billing postcode input" },
+
+    { "when": { "elementName": "telefono1Fact" },
+      "canonical": "agency.field_billing_phone1",
+      "notes": "Agency profile — Billing phone 1 input" },
+
+    { "when": { "elementName": "telefono2Fact" },
+      "canonical": "agency.field_billing_phone2",
+      "notes": "Agency profile — Billing phone 2 input" },
+
+    { "when": { "elementName": "telefonoMovilFact" },
+      "canonical": "agency.field_billing_mobile",
+      "notes": "Agency profile — Billing mobile phone input" },
+
+    { "when": { "elementName": "faxFact" },
+      "canonical": "agency.field_billing_fax",
+      "notes": "Agency profile — Billing fax input" },
+
+    { "when": { "elementName": "codigoFiscal" },
+      "canonical": "agency.field_tax_code",
+      "notes": "Agency profile — Tax code input" },
+
+    { "when": {
+        "urlPattern": "/users/agency\\.aspx",
+        "label": "Save"
+      },
+      "canonical": "agency.save_profile",
+      "notes": "Agency profile — Save button" },
+
+    "═══ Password page (password.aspx) ═════════════════════════════════",
+
+    { "when": { "elementId": "change_password_by_user" },
+      "canonical": "password.new_password_input",
+      "notes": "Password — New password input" },
+
+    "═══ Booking results — row detail tabs and actions (repeat per row) ",
+
+    { "when": { "label": "Added products" },
+      "canonical": "bookings.tab_added_products",
+      "notes": "Booking detail — Added products tab" },
+
+    { "when": { "label": "Price breakdown" },
+      "canonical": "bookings.tab_price_breakdown",
+      "notes": "Booking detail — Price breakdown tab" },
+
+    { "when": { "label": "Holder details" },
+      "canonical": "bookings.tab_holder_details",
+      "notes": "Booking detail — Holder details tab" },
+
+    { "when": { "label": "Agent details" },
+      "canonical": "bookings.tab_agent_details",
+      "notes": "Booking detail — Agent details tab" },
+
+    { "when": { "label": "Passengers" },
+      "canonical": "bookings.tab_passengers",
+      "notes": "Booking detail — Passengers tab" },
+
+    { "when": { "label": "Booking documentation" },
+      "canonical": "bookings.tab_documentation",
+      "notes": "Booking detail — Booking documentation tab" },
+
+    { "when": { "label": "Open booking details" },
+      "canonical": "bookings.open_in_new_window",
+      "notes": "Booking detail — Open booking details in new window" },
+
+    { "when": { "label": "Show cancellation policy" },
+      "canonical": "bookings.show_cancellation_policy",
+      "notes": "Booking detail — Show cancellation policy link" },
+
+    { "when": { "label": "Cancel booking" },
+      "canonical": "bookings.cancel",
+      "notes": "Booking detail — Cancel booking link" },
+
+    { "when": { "label": "Add products" },
+      "canonical": "bookings.add_products",
+      "notes": "Booking detail — Add products link" },
+
+    { "when": { "label": "Download voucher" },
+      "canonical": "bookings.download_voucher",
+      "notes": "Booking detail — Download voucher link" },
+
+    { "when": { "label": "Next" },
+      "canonical": "bookings.pagination_next",
+      "notes": "Bookings results — pagination Next link" }
+  ],
+
+  "yalago": [
+
+    "═══ Header / footer navigation (persistent across all pages) ═════",
+    "Note: the React app (/, /CSR/Search, /MyBookings) and the legacy",
+    "server-rendered app (/Home/FAQ, /Home/ApiSpecs, /Booking/Details/*)",
+    "use different markup but share the same link text, so most of",
+    "these rules cover both without needing urlPattern scoping.",
+
+    { "when": { "label": "Accommodations" },
+      "canonical": "nav.accommodations",
+      "notes": "Nav — Accommodations link" },
+
+    { "when": { "label": "My Bookings" },
+      "canonical": "nav.my_bookings",
+      "notes": "Nav — My Bookings link" },
+
+    { "when": { "label": "CSR" },
+      "canonical": "nav.csr",
+      "notes": "Nav — CSR link" },
+
+    { "when": { "label": "FAQ" },
+      "canonical": "nav.faq",
+      "notes": "Nav — FAQ link (matches both \"FAQ\" and \"FAQ's\" since 'FAQ' is a substring of both)" },
+
+    { "when": { "label": "Get API specs" },
+      "canonical": "nav.api_specs",
+      "notes": "Nav — Get API specs link (case-insensitive match covers 'Get API Specs' too)" },
+
+    { "when": { "label": "Change password" },
+      "canonical": "auth.change_password",
+      "notes": "Legacy header — Change password link" },
+
+    { "when": { "label": "Log off" },
+      "canonical": "auth.signout",
+      "notes": "Legacy header — Log off link" },
+
+    { "when": { "label": "Yalago Privacy Policy" },
+      "canonical": "nav.privacy_policy",
+      "notes": "React app footer — Yalago Privacy Policy link" },
+
+    "═══ Home — Hotel search form (/) ══════════════════════════════════",
+
+    { "when": { "elementId": "destination-field-input" },
+      "canonical": "search.destination_selected",
+      "notes": "Home/MyBookings — Destination input (same id reused on MyBookings with the same meaning)" },
+
+    { "when": { "elementId": "date-picker-from" },
+      "canonical": "search.checkin_selected",
+      "notes": "Home — Check-in date input" },
+
+    { "when": { "elementId": "date-picker-nights" },
+      "canonical": "search.nights_selected",
+      "notes": "Home — Nights input" },
+
+    { "when": { "elementId": "date-picker-to" },
+      "canonical": "search.checkout_selected",
+      "notes": "Home — Check-out date input" },
+
+    { "when": { "elementId": "guest-control-text" },
+      "canonical": "search.occupancy_selected",
+      "notes": "Home — Rooms/guests control" },
+
+    { "when": { "elementId": "branch-field-input" },
+      "canonical": "search.branch_selected",
+      "notes": "Home — Branch (e.g. Hotels R Us) selector input" },
+
+    { "when": { "elementId": "price-min-field" },
+      "canonical": "search.price_min_selected",
+      "notes": "Home — Minimum price input" },
+
+    { "when": { "elementId": "price-max-field" },
+      "canonical": "search.price_max_selected",
+      "notes": "Home — Maximum price input" },
+
+    { "when": { "elementId": "price-currency-input" },
+      "canonical": "search.price_currency_selected",
+      "notes": "Home — Price currency input" },
+
+    { "when": { "label": "More options" },
+      "canonical": "search.more_options_toggle",
+      "notes": "Home — More options expander link" },
+
+    { "when": { "label": "Package rates" },
+      "canonical": "search.package_rates_toggle",
+      "notes": "Home — Package rates checkbox label" },
+
+    { "when": { "elementId": "search-button" },
+      "canonical": "search.submit",
+      "notes": "Home — main hotel-search Search button" },
+
+    { "when": { "elementId": "searchBookingId" },
+      "canonical": "search.filter_booking_id",
+      "notes": "Home — quick Booking ID search input" },
+
+    { "when": { "label": "SEARCH" },
+      "canonical": "search.booking_id_submit",
+      "notes": "Home — quick Booking ID search button (no stable id; evaluated after the id-based Search rules above so it only catches this one)" },
+
+    "═══ CSR Search page (/CSR/Search) ═════════════════════════════════",
+
+    { "when": { "elementId": "csr-field-raised-by" },
+      "canonical": "csr.filter_raised_by",
+      "notes": "CSR — Raised by input" },
+
+    { "when": { "elementId": "csr-field-yalago-ref" },
+      "canonical": "csr.filter_yalago_ref",
+      "notes": "CSR — Yalago reference input" },
+
+    { "when": { "elementId": "csr-field-client-ref" },
+      "canonical": "csr.filter_client_ref",
+      "notes": "CSR — Client reference input" },
+
+    { "when": { "elementId": "csr-field-status" },
+      "canonical": "csr.filter_status",
+      "notes": "CSR — Status input" },
+
+    { "when": { "elementId": "csr-field-subject" },
+      "canonical": "csr.filter_subject",
+      "notes": "CSR — Subject input" },
+
+    { "when": { "elementId": "csr-field-category" },
+      "canonical": "csr.filter_category",
+      "notes": "CSR — Category input" },
+
+    { "when": { "elementId": "csr-button-search" },
+      "canonical": "csr.submit",
+      "notes": "CSR — Search button" },
+
+    { "when": { "elementId": "csr-button-export-to-excel" },
+      "canonical": "export.excel",
+      "notes": "CSR/MyBookings — Export to Excel button (same id reused on MyBookings)" },
+
+    "═══ API Specs page (/Home/ApiSpecs) ═══════════════════════════════",
+
+    { "when": { "label": "API Json" },
+      "canonical": "api.view_json_spec",
+      "notes": "API Specs — API Json version link" },
+
+    { "when": { "label": "Static Data" },
+      "canonical": "api.view_static_data_spec",
+      "notes": "API Specs — Static Data version link" },
+
+    { "when": { "label": "API.support@yalago.com" },
+      "canonical": "api.contact_email",
+      "notes": "API Specs — support email mailto link" },
+
+    "═══ Booking Details page (/Booking/Details/{id}) ══════════════════",
+
+    { "when": { "label": "Cancel Booking" },
+      "canonical": "booking.cancel",
+      "notes": "Booking details — Cancel Booking action" },
+
+    { "when": { "label": "Add/Modify Special Requests" },
+      "canonical": "booking.add_modify_special_requests",
+      "notes": "Booking details — Add/Modify Special Requests link" },
+
+    { "when": { "label": "Show voucher" },
+      "canonical": "booking.show_voucher",
+      "notes": "Booking details — Show voucher link" },
+
+    { "when": { "label": "customerservices@dnata.com" },
+      "canonical": "booking.contact_email",
+      "notes": "Booking details — support email mailto link" },
+
+    "═══ MyBookings page (/MyBookings) ═════════════════════════════════",
+
+    { "when": { "elementId": "scenario-dialog-tab-0" },
+      "canonical": "mybookings.tab_by_date",
+      "notes": "MyBookings — 'By Date' search tab" },
+
+    { "when": { "elementId": "scenario-dialog-tab-1" },
+      "canonical": "mybookings.tab_by_id",
+      "notes": "MyBookings — 'By Id' search tab" },
+
+    { "when": { "elementId": "bookedDateFrom-field" },
+      "canonical": "mybookings.filter_booked_date_from",
+      "notes": "MyBookings — Booked date-from filter" },
+
+    { "when": { "elementId": "bookedDateTo-field" },
+      "canonical": "mybookings.filter_booked_date_to",
+      "notes": "MyBookings — Booked date-to filter" },
+
+    { "when": { "elementId": "email-address-field" },
+      "canonical": "mybookings.filter_email",
+      "notes": "MyBookings — Email address filter" },
+
+    { "when": { "elementId": "affiliate-account-id-field" },
+      "canonical": "mybookings.filter_affiliate_account_id",
+      "notes": "MyBookings — Affiliate account ID (branch) filter" },
+
+    { "when": { "elementId": "first-name-field" },
+      "canonical": "mybookings.filter_first_name",
+      "notes": "MyBookings — First name filter" },
+
+    { "when": { "elementId": "last-name-field" },
+      "canonical": "mybookings.filter_last_name",
+      "notes": "MyBookings — Last name filter" },
+
+    { "when": { "elementId": "bookedby-field" },
+      "canonical": "mybookings.filter_booked_by",
+      "notes": "MyBookings — Booked-by filter" },
+
+    { "when": { "elementId": "date-tab-button-search" },
+      "canonical": "mybookings.submit",
+      "notes": "MyBookings — Search button" },
+
+    { "when": { "elementId": "csr-button-export-to-pdf" },
+      "canonical": "export.pdf",
+      "notes": "MyBookings — Export to PDF button" },
+
+    "═══ Generic fallback — evaluated LAST so it never preempts more",
+    "specific labels that contain the word 'Yalago' (Privacy Policy",
+    "link, support email address, etc.) ═══════════════════════════════",
+
+    { "when": { "label": "Yalago" },
+      "canonical": "nav.home_logo",
+      "notes": "Header/footer — Yalago logo link" }
   ]
 }
