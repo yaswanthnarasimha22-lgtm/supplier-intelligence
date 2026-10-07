@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, rename } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { classifyEvent } from "../classification/click-rules.js";
 
@@ -83,25 +83,184 @@ function getCredentialEnvVars(supplierKey) {
 
 // ---------------------------------------------------------------------------
 // Session store — in-memory index + one JSON file per session.
-// Everything (session metadata + its event stream) lives in
-// backend/session-data/sessions/<sessionId>.json.
+//
+// Everything (session metadata + its action stream) lives in
+//   backend/session-data/sessions/<sessionId>.json
+//
+// There are no other folders by design: no per-agent, per-day or per-
+// supplier shards.  The one-file-per-session layout keeps every record
+// atomically rewriteable, trivially greppable, and 1:1 with the
+// `supplier_sessions` row the schema migration maps to.
 // ---------------------------------------------------------------------------
 
-const sessionsById = new Map();
-const sessionRecordsById = new Map();
+const sessionsById = new Map();        // session (auth + launch bookkeeping)
+const sessionRecordsById = new Map();  // record  (persisted shape, kept hot)
 
-const sessionsDirectory = fileURLToPath(new URL("../session-data/sessions/", import.meta.url));
+const sessionsDirectory = fileURLToPath(
+  new URL("../session-data/sessions/", import.meta.url)
+);
 
 function sessionFilePath(sessionId) {
   return `${sessionsDirectory}${sessionId}.json`;
 }
 
-async function saveSessionRecord(record) {
+// ---------------------------------------------------------------------------
+// Serialized atomic writes.
+//
+// The previous implementation called writeFile() directly on every event.
+// Two risks it carried:
+//   1. Two concurrent events on the same session could interleave their
+//      full-file rewrites and leave the JSON partially overwritten.
+//   2. A crash mid-write would truncate the file.
+//
+// This queue chains writes per sessionId so they run one-at-a-time, and
+// each write goes through a tmp file + rename so an aborted write never
+// clobbers the previous good copy.  rename() is atomic on POSIX for the
+// same filesystem.
+// ---------------------------------------------------------------------------
+
+const writeQueueBySessionId = new Map();
+
+async function performAtomicWrite(record) {
   await mkdir(sessionsDirectory, { recursive: true });
-  await writeFile(
-    sessionFilePath(record.sessionId),
-    `${JSON.stringify(record, null, 2)}\n`
-  );
+  const finalPath = sessionFilePath(record.sessionId);
+  const tmpPath = `${finalPath}.tmp-${process.pid}`;
+  const payload = projectSessionToDisk(record);
+  await writeFile(tmpPath, `${JSON.stringify(payload, null, 2)}\n`);
+  await rename(tmpPath, finalPath);
+}
+
+function enqueueSessionWrite(record) {
+  const prev = writeQueueBySessionId.get(record.sessionId) || Promise.resolve();
+  const next = prev
+    .catch(() => {})           // never let one failure poison the chain
+    .then(() => performAtomicWrite(record));
+  writeQueueBySessionId.set(record.sessionId, next);
+  // Clean the map entry once the chain tail resolves so idle sessions
+  // don't retain their promise forever.
+  next.finally(() => {
+    if (writeQueueBySessionId.get(record.sessionId) === next) {
+      writeQueueBySessionId.delete(record.sessionId);
+    }
+  });
+  return next;
+}
+
+// ---------------------------------------------------------------------------
+// On-disk projection — turn the hot in-memory record (which keeps the
+// internal slim event stream to feed the existing APIs) into the clear,
+// DB-ready, incident-reviewable shape the user asked for.
+//
+// Grouping choices:
+//   session.*   stable identity + supplier wiring the DB primary row needs
+//   agent.*     who did it (joined from Cognito at session-create time)
+//   timings.*   when it happened — ready for started_at / ended_at columns
+//   summary.*   derived counters so an on-call engineer can scan one page
+//   actions[]   the audit trail itself, newest field order matches the
+//               question an incident responder actually asks: when, what,
+//               where (url), what element, and why we classified it that way
+// ---------------------------------------------------------------------------
+
+const SCHEMA_VERSION = 2;
+
+// Element-identifying fields pulled from metadata into a dedicated
+// `target` block so an incident reader does not have to scroll the whole
+// metadata blob to see which button was clicked.
+const TARGET_FIELDS = [
+  "element",
+  "elementId",
+  "elementName",
+  "role",
+  "label",
+  "href",
+  "formName",
+  "placeholder",
+  "ariaLabel",
+  "ariaLabelledby",
+  "formControlName",
+  "classAttr",
+  "dataQa",
+  "dataTestid",
+  "dataTest",
+  "dataCy",
+  "dataAnalyticsId"
+];
+
+function projectEventToAction(slim) {
+  const metadata = slim.metadata || {};
+  const target = {};
+  const details = {};
+  for (const [k, v] of Object.entries(metadata)) {
+    if (v === null || v === undefined || v === "") continue;
+    if (TARGET_FIELDS.includes(k)) target[k] = v;
+    else details[k] = v;
+  }
+  // The click handler emits elementId/elementName as top-level event
+  // fields (not inside metadata).  Lift them into target too so every
+  // click action is self-contained.
+  if (slim.elementId && !target.elementId) target.elementId = slim.elementId;
+  if (slim.elementName && !target.elementName) target.elementName = slim.elementName;
+  if (slim.href && !target.href) target.href = slim.href;
+
+  return {
+    at: slim.occurredAt || null,
+    receivedAt: slim.receivedAt || null,
+    eventId: slim.eventId || null,
+    type: slim.eventType || null,
+    action: slim.action || null,
+    canonical: slim.canonicalAction || null,
+    url: slim.url || null,
+    pageTitle: slim.pageTitle || null,
+    tabId: slim.tabId || null,
+    ...(Object.keys(target).length ? { target } : {}),
+    ...(Object.keys(details).length ? { details } : {})
+  };
+}
+
+function summarize(record) {
+  const counts = Object.create(null);
+  let firstUrl = null;
+  let lastUrl = null;
+  for (const e of record.events) {
+    const key = e.canonicalAction || "(unclassified)";
+    counts[key] = (counts[key] || 0) + 1;
+    if (!firstUrl && e.url) firstUrl = e.url;
+    if (e.url) lastUrl = e.url;
+  }
+  return {
+    eventCount: record.events.length,
+    canonicalCounts: counts,
+    firstUrl,
+    lastUrl
+  };
+}
+
+function projectSessionToDisk(record) {
+  const createdAt = record.createdAt || null;
+  const endedAt = record.endedAt || null;
+  const durationMs =
+    createdAt && endedAt
+      ? Math.max(0, new Date(endedAt).getTime() - new Date(createdAt).getTime())
+      : null;
+
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    sessionId: record.sessionId,
+    supplier: {
+      key: record.supplier,
+      label: record.supplierLabel,
+      startUrl: record.startUrl
+    },
+    agent: record.agent,
+    client: record.client,
+    timings: {
+      createdAt,
+      endedAt,
+      durationMs
+    },
+    summary: summarize(record),
+    actions: record.events.map(projectEventToAction)
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -155,9 +314,11 @@ export async function createSession(payload) {
 
   sessionsById.set(session.sessionId, session);
 
-  // Session record shape (persisted): identity appears exactly once as
-  // `agent`.  Events stored below carry only the join key (`sessionId`)
-  // and their own attributes.
+  // In-memory record shape (NOT what is persisted — see projectSessionToDisk).
+  // We keep `events` as a flat slim array here because the server's own
+  // read APIs (findSessionsByAgent / findEventsByAgent) and the live
+  // event-tail iterate it directly.  Projection into the readable disk
+  // shape happens only at write time.
   const record = {
     sessionId: session.sessionId,
     supplier: session.supplier,
@@ -172,10 +333,8 @@ export async function createSession(payload) {
   };
 
   sessionRecordsById.set(session.sessionId, record);
-  await saveSessionRecord(record);
+  await enqueueSessionWrite(record);
 
-  // The response body reflects what the extension needs; agent is included
-  // so downstream code can carry it verbatim without re-reading auth state.
   return {
     status: 201,
     body: {
@@ -234,22 +393,29 @@ export async function appendSessionEvent(event, authorization) {
   // the session record and are joined at read time (or hydrated at Elastic
   // ingest).  We strip any client-supplied identity fields here to make
   // sure a compromised extension cannot forge them.
-  //
-  // The extension already computes a semantic `action` (e.g. "click:book_now",
-  // "date:checkin_date", "submit:search_form").  We lift it out of metadata
-  // to a first-class column and run the server-side rule dictionary to
-  // produce a canonical action ("booking.create") when one matches.
   const meta = event.metadata || {};
+
   // Prefer the semantic action the extension computed (e.g. "click:book_now");
   // fall back to the eventType itself (e.g. "page.loaded", "login.submitted")
   // so every event in the file carries a human-readable `action` string —
   // never null, never missing.
   const action = event.action || meta.action || event.eventType || "unknown";
+
+  // IMPORTANT: pass the full event to classifyEvent.  The classifier's
+  // Layer 1 (selector-rules.json) reads `metadata`, `url`, `pageTitle`,
+  // and `eventType`; passing only {action, supplier, role, field} meant
+  // every supplier-specific selector rule silently never matched and
+  // every click fell through to the generic Layer 2 regexes.  Keep every
+  // key the rule DSL inspects wired through here.
   const canonicalAction = classifyEvent({
     action,
     supplier: record.supplier,
+    eventType: event.eventType,
+    url: event.url,
+    pageTitle: event.pageTitle,
     role: meta.role,
-    field: meta.field
+    field: meta.field,
+    metadata: meta
   });
 
   const slimEvent = {
@@ -273,7 +439,11 @@ export async function appendSessionEvent(event, authorization) {
     record.endedAt = slimEvent.occurredAt || new Date().toISOString();
   }
 
-  await saveSessionRecord(record);
+  // Serialize per-session writes so concurrent events never interleave
+  // their rewrites.  We don't await the queue here — the extension
+  // already treats 202 as fire-and-forget — but a failed write surfaces
+  // on the chain's `.catch` in enqueueSessionWrite().
+  enqueueSessionWrite(record);
 
   // Return the slim event so the caller (ingest-event) can echo it back
   // to the UI event log; the launcher looks up agent info by sessionId
@@ -323,3 +493,7 @@ export function findEventsByAgent(username, limit = 500) {
     .sort((a, b) => (b.occurredAt || "").localeCompare(a.occurredAt || ""))
     .slice(0, limit);
 }
+
+// Exported for tests: the pure projection function, so a harness can
+// render a session file without touching disk.
+export const __test__ = { projectSessionToDisk, projectEventToAction, summarize };

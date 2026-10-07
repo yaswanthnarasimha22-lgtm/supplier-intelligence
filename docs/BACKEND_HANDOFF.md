@@ -376,16 +376,76 @@ Under `backend/session-data/`:
 sessions/<sessionId>.json          canonical session record (updated in place)
 ```
 
-Each file contains the session metadata (agent identity once, supplier
-details once) plus its own `events[]` array in insertion order.  To
-migrate into a database, iterate over the files and INSERT one row per
-session into `supplier_sessions` and one row per `events[]` entry into
+There are no other folders by design — no per-agent, per-day or per-
+supplier shards.  One file per session is enough for grep, audit, and
+the SQL migration below, and it keeps each record atomically
+rewriteable (the handler writes to `<path>.tmp-<pid>` then rename()s).
+
+### 7.1 Session file shape (schemaVersion 2)
+
+```jsonc
+{
+  "schemaVersion": 2,
+  "sessionId": "sup_sess_<uuid>",
+  "supplier": { "key": "yalago", "label": "Yalago", "startUrl": "..." },
+  "agent":    { "username": "...", "displayName": "...", "email": "...",
+                "provider": "cognito", "sub": "<uuid>", "signedInAt": "..." },
+  "client":   null,
+  "timings":  { "createdAt": "ISO", "endedAt": "ISO|null", "durationMs": 12345 },
+  "summary":  {
+    "eventCount": 42,
+    "canonicalCounts": { "nav.hotels": 3, "search.submit": 1, "booking.create": 1 },
+    "firstUrl": "https://affiliate.yalago.com/",
+    "lastUrl":  "https://affiliate.yalago.com/MyBookings"
+  },
+  "actions": [
+    {
+      "at": "ISO",            // occurredAt in the browser
+      "receivedAt": "ISO",    // when the server stamped it
+      "eventId": "evt_...",
+      "type": "interaction.click",
+      "action": "click:book_now",       // auto-derived label from the extension
+      "canonical": "booking.create",    // from selector-rules.json (Layer 1) or click-rules.js (Layer 2)
+      "url": "...",
+      "pageTitle": "...",
+      "tabId": 123,
+      "target": {                       // element identity, lifted from metadata so an incident reader doesn't scroll
+        "element": "button",
+        "elementId": "...",
+        "elementName": "...",
+        "role": "button",
+        "label": "Book now",
+        "href": "...",
+        "cssClass": "...",
+        "ariaLabel": null,
+        "formName": null,
+        "dataQa": null
+      },
+      "details": { "initiatedBy": "user" }   // anything from metadata not already in `target`
+    }
+  ]
+}
+```
+
+### 7.2 Migrating into a database
+
+Iterate over the files and INSERT one row per session into
+`supplier_sessions` and one row per `actions[]` entry into
 `supplier_events`:
 
 ```bash
 for f in backend/session-data/sessions/*.json; do
-  jq '{id: .sessionId, agent: .agent, supplier, startedAt: .createdAt, endedAt}' "$f"
-  jq -c '.events[]' "$f"
+  jq '{
+    id: .sessionId,
+    agent: .agent,
+    supplier_key: .supplier.key,
+    supplier_label: .supplier.label,
+    start_url: .supplier.startUrl,
+    started_at: .timings.createdAt,
+    ended_at: .timings.endedAt,
+    duration_ms: .timings.durationMs
+  }' "$f"
+  jq -c '.actions[]' "$f"
 done
 ```
 

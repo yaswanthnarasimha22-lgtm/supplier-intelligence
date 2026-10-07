@@ -1,13 +1,18 @@
 import { appendSessionEvent, getSessionAgentUsername } from "./create-session";
 
 // A bounded in-memory tail of the freshest events for the launcher UI's
-// event log.  Persistence (per-session JSON + per-day JSONL + per-agent
-// JSONL) is handled inside `appendSessionEvent` so nothing is lost even
-// when this window is trimmed.
+// event log.  Durable persistence (one JSON file per session under
+// backend/session-data/sessions/) is handled inside `appendSessionEvent`
+// so nothing is lost even when this window is trimmed.
 //
 // Events themselves are stored slim (no denormalized userId/email).
 // The `agent=` filter below resolves the session→username lookup via
 // `getSessionAgentUsername` — one-way dependency, no circular imports.
+//
+// Implementation note: this is a plain array treated as a ring buffer
+// with newest-first ordering.  We `push` and `shift` (both O(1) in V8
+// for the small MAX_TAIL we use) rather than `unshift` (O(n)); callers
+// get a newest-first view by iterating from the end.
 const receivedEvents = [];
 const MAX_TAIL = 500;
 
@@ -26,35 +31,35 @@ export async function ingestEvent(event, authorization) {
 
   const slimEvent = result.body?.event || stampedEvent;
 
-  // Keep the tail plus its session→agent hint so filters below stay O(1).
-  receivedEvents.unshift(slimEvent);
-  if (receivedEvents.length > MAX_TAIL) receivedEvents.length = MAX_TAIL;
+  // Append to tail; drop the oldest when the window fills.
+  receivedEvents.push(slimEvent);
+  if (receivedEvents.length > MAX_TAIL) receivedEvents.shift();
 
   return result;
 }
 
 /**
- * Return the tail of recent events.  Optional filters mimic what the
- * production reporting API will support (see docs/BACKEND_HANDOFF.md).
- * The `agent` filter uses the session→username index because events
- * themselves are stored slim.
+ * Return the tail of recent events, newest-first.  Optional filters
+ * mimic what the production reporting API will support (see
+ * docs/BACKEND_HANDOFF.md).  The `agent` filter uses the session→
+ * username index because events themselves are stored slim.
  */
 export function listEvents({ agent, supplier, eventType, limit = 200 } = {}) {
-  let rows = receivedEvents;
-
-  if (agent) {
-    const target = String(agent).toLowerCase();
-    rows = rows.filter((e) => {
+  // Iterate newest-first without reversing a 500-entry array on every
+  // request.  Build the result lazily and stop once `limit` is reached.
+  const capped = Math.max(1, Math.min(limit, MAX_TAIL));
+  const target = agent ? String(agent).toLowerCase() : null;
+  const supplierTarget = supplier ? String(supplier).toLowerCase() : null;
+  const rows = [];
+  for (let i = receivedEvents.length - 1; i >= 0 && rows.length < capped; i -= 1) {
+    const e = receivedEvents[i];
+    if (eventType && e.eventType !== eventType) continue;
+    if (supplierTarget && String(e.supplier || "").toLowerCase() !== supplierTarget) continue;
+    if (target) {
       const username = getSessionAgentUsername(e.sessionId);
-      return username && username.toLowerCase() === target;
-    });
+      if (!username || username.toLowerCase() !== target) continue;
+    }
+    rows.push(e);
   }
-  if (supplier) {
-    const target = String(supplier).toLowerCase();
-    rows = rows.filter((e) => String(e.supplier || "").toLowerCase() === target);
-  }
-  if (eventType) {
-    rows = rows.filter((e) => e.eventType === eventType);
-  }
-  return rows.slice(0, Math.max(1, Math.min(limit, MAX_TAIL)));
+  return rows;
 }
