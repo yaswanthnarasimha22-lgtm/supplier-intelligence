@@ -709,5 +709,194 @@
     { "when": { "label": "Invoices" },
       "canonical": "nav.invoices",
       "notes": "Sidebar — Invoices link" }
+  ],
+
+  "suntransfers": [
+
+    "═══ Header / account menu (common across all pages) ═════════════",
+
+    { "when": { "label": "Contact us 24/7/365" },
+      "canonical": "nav.contact",
+      "notes": "Header — Contact us 24/7/365 link" },
+
+    { "when": { "label": "My account" },
+      "canonical": "nav.account",
+      "notes": "Account dropdown — My account link" },
+
+    { "when": { "label": "Logout" },
+      "canonical": "auth.signout",
+      "notes": "Account dropdown — Logout link" },
+
+    { "when": { "label": "New quote" },
+      "canonical": "nav.new_quote",
+      "notes": "Side menu — New quote link" },
+
+    { "when": { "label": "Bookings" },
+      "canonical": "nav.bookings",
+      "notes": "Side menu — Bookings link" },
+
+    { "when": { "label": "Billing" },
+      "canonical": "nav.billing",
+      "notes": "Side menu — Billing (invoices) link" },
+
+    { "when": { "label": "Help" },
+      "canonical": "nav.help",
+      "notes": "Side menu — Help link" },
+
+    "═══ New quote search form (/agency/quote) ═══════════════════════",
+
+    { "when": { "elementId": "outward_location" },
+      "canonical": "search.outward_location_selected",
+      "notes": "New quote — Outward (pickup) location input" },
+
+    { "when": { "elementId": "return_location" },
+      "canonical": "search.return_location_selected",
+      "notes": "New quote — Return (drop-off) location input" },
+
+    { "when": { "elementId": "outward_date" },
+      "canonical": "search.outward_date_selected",
+      "notes": "New quote — Outward flight date/time input" },
+
+    { "when": { "elementId": "inward_date" },
+      "canonical": "search.inward_date_selected",
+      "notes": "New quote — Inward (return) flight date/time input" },
+
+    { "when": {
+        "urlPattern": "/agency/quote",
+        "label": "Add a return"
+      },
+      "canonical": "search.return_toggle",
+      "notes": "New quote — 'Add a return' leg toggle" },
+
+    { "when": {
+        "urlPattern": "/agency/quote",
+        "classContains": "js-dropdown-button-form"
+      },
+      "canonical": "search.passengers_selected",
+      "notes": "New quote — Passengers counter dropdown (e.g. '2 adults')" },
+
+    { "when": { "elementId": "submit_form" },
+      "canonical": "search.submit",
+      "notes": "New quote — Search button" },
+
+    "═══ Bookings list filters (/agency/quote/bookings) ══════════════",
+
+    { "when": { "elementName": "filters[target]" },
+      "canonical": "bookings.filter_target",
+      "notes": "Bookings — search-target dropdown (booking ref / passenger / etc.)" },
+
+    { "when": { "elementName": "filters[from]" },
+      "canonical": "bookings.filter_date_from",
+      "notes": "Bookings — date-from filter (id is a dynamic datepicker timestamp, matched by name instead)" },
+
+    { "when": { "elementName": "filters[to]" },
+      "canonical": "bookings.filter_date_to",
+      "notes": "Bookings — date-to filter (id is a dynamic datepicker timestamp, matched by name instead)" },
+
+    { "when": { "elementId": "filters_user_id" },
+      "canonical": "bookings.filter_user",
+      "notes": "Bookings — created-by user dropdown" },
+
+    { "when": { "elementName": "filters[freetext_target][]" },
+      "canonical": "bookings.filter_freetext_target",
+      "notes": "Bookings — free-text search target dropdown" },
+
+    { "when": { "elementId": "btn_go" },
+      "canonical": "bookings.filter_applied",
+      "notes": "Bookings — Go button (apply filters)" },
+
+    { "when": { "elementId": "btn_reset" },
+      "canonical": "bookings.filter_reset",
+      "notes": "Bookings — Reset button (clear filters)" },
+
+    { "when": {
+        "urlPattern": "/agency/quote/bookings",
+        "label": "Date"
+      },
+      "canonical": "bookings.sort_date",
+      "notes": "Bookings — sortable 'Date' column header" },
+
+    { "when": {
+        "urlPattern": "/agency/quote/bookings",
+        "label": "Created by"
+      },
+      "canonical": "bookings.sort_created_by",
+      "notes": "Bookings — sortable 'Created by' column header" },
+
+    { "when": {
+        "urlPattern": "/agency/quote/bookings",
+        "label": "External Booking Id"
+      },
+      "canonical": "bookings.sort_external_booking_id",
+      "notes": "Bookings — sortable 'External Booking Id' column header" },
+
+    { "when": {
+        "urlPattern": "/agency/quote/bookings",
+        "label": "Lead pass."
+      },
+      "canonical": "bookings.sort_lead_passenger",
+      "notes": "Bookings — sortable 'Lead pass.' column header" },
+
+    { "when": { "label": "Quick view" },
+      "canonical": "bookings.quick_view",
+      "notes": "Bookings — Quick view row action (repeats per row)" },
+
+    { "when": { "label": "Amend" },
+      "canonical": "bookings.amend",
+      "notes": "Bookings — Amend row action (repeats per row)" },
+
+    { "when": { "label": "Print voucher" },
+      "canonical": "bookings.print_voucher",
+      "notes": "Bookings — Print voucher row action (repeats per row)" },
+
+    { "when": { "classContains": "cancel_booking_button" },
+      "canonical": "bookings.cancel",
+      "notes": "Bookings — Cancel row action (repeats per row; matched by class since label 'Cancel' is less specific)" },
+
+    { "when": {
+        "urlPattern": "/agency/quote/bookings",
+        "label": "Next >"
+      },
+      "canonical": "bookings.pagination_next",
+      "notes": "Bookings — pagination Next button" },
+
+    "═══ Invoices page (/agency/invoices) ═════════════════════════════",
+
+    { "when": { "elementId": "select_filter" },
+      "canonical": "invoices.filter_type",
+      "notes": "Invoices — search-scope dropdown" },
+
+    { "when": { "elementId": "f_search_from_date_box" },
+      "canonical": "invoices.filter_date_from",
+      "notes": "Invoices — date-from filter input" },
+
+    { "when": { "elementId": "f_search_to_date_box" },
+      "canonical": "invoices.filter_date_to",
+      "notes": "Invoices — date-to filter input" },
+
+    { "when": { "elementId": "bt_go" },
+      "canonical": "invoices.filter_applied",
+      "notes": "Invoices — Go button (apply filters)" },
+
+    { "when": {
+        "urlPattern": "/agency/invoices",
+        "label": "Download report"
+      },
+      "canonical": "invoices.download_report",
+      "notes": "Invoices — Download report link" },
+
+    { "when": {
+        "urlPattern": "/agency/invoices",
+        "label": "<< First"
+      },
+      "canonical": "invoices.pagination_first",
+      "notes": "Invoices — pagination First button" },
+
+    { "when": {
+        "urlPattern": "/agency/invoices",
+        "label": "Last >>"
+      },
+      "canonical": "invoices.pagination_last",
+      "notes": "Invoices — pagination Last button" }
   ]
 }
